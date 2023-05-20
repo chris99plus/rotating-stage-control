@@ -14,7 +14,8 @@ class Runtime(ABC):
     their own runtime, which itself runs in a seperate process. This runtime is
     split into three parts: Setup, loop and stop (or cleanup). Setup and stop
     are called once and loop is called repeatably until the runtime is forced to
-    stop. The runtime object can be initialized with arguments."""
+    stop. The runtime is initialized with arguments passed to the class
+    constructor."""
     @abstractmethod
     def setup():
         pass

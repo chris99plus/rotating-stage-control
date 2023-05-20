@@ -96,12 +96,17 @@ class GenericProcess(ABC):
         """Defines the dependency to another process."""
         process._subscriber.add(self)
 
-    def start(self) -> None:
+    def start(self, timeout: int = 30) -> None:
         """Start the runtime"""
         if self._process is not None:
             return
         self._process, self._signal = self.init()
         self.process.start()
+        if self._signal.poll(timeout) and self.recv_signal() == Signals.INITIALIZED:
+            return
+        else:
+            self.stop()
+            raise Exception("Initializing process %s failed." % self.__class__.__name__)
 
     def stop(self, timeout: int = 5) -> int | None:
         """Stops the runtime"""
