@@ -1,17 +1,17 @@
 from multiprocessing.connection import Connection
 from multiprocessing import Pipe
-from typing import Any, Dict, List, Tuple, cast
+from typing import Tuple
 import cv2
 import time
 import math
 
 from .runtime import Runtime
-from .process import GenericProcess, RuntimeEnv
+from .process import GenericProcess, RuntimeEnvironment
 
 class AbsoluteSensorRuntime(Runtime):
-    def __init__(self, args: List[Any], kwargs: Dict[str, Any]) -> None:
-        super().__init__(args, kwargs)
-        self.values = cast(Connection, self.kwargs["values"])
+    def __init__(self, values: Connection) -> None:
+        super().__init__()
+        self.values = values
         self.camera = 0
 
     def setup(self) -> None:
@@ -82,10 +82,10 @@ class AbsoluteSensor(GenericProcess):
     def __init__(self) -> None:
         super().__init__()
 
-    def init(self) -> Tuple[RuntimeEnv, Connection]:
+    def init(self) -> Tuple[RuntimeEnvironment, Connection]:
         signal, runtime_signal = Pipe()
         self.values, runtime_value = Pipe()
         kwargs = {
             "values": runtime_value
         }
-        return RuntimeEnv(AbsoluteSensorRuntime, runtime_signal, kwargs=kwargs), signal
+        return RuntimeEnvironment(AbsoluteSensorRuntime, runtime_signal, kwargs=kwargs), signal

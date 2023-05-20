@@ -30,8 +30,8 @@ def main():
                 absolute_sensor.restart()
 
     print(f"... Received signal. Shutting down ...")
-    print("Control exited with %i" % control.stop())
-    print("Absolute sensor exited with %i" % absolute_sensor.stop())
+    print("Control exited with %s" % control.stop())
+    print("Absolute sensor exited with %s" % absolute_sensor.stop())
 
 if "__main__" == __name__:
     main()
