@@ -7,17 +7,13 @@ from enum import Enum
 from .runtime import Runtime, ExitCodes
 
 class Signals(Enum):
+    """Signal send to and from a process to communicate its state or call for
+    action."""
     INITIALIZED = 0
     STOP = 1
     ERROR = 2
 
-class State(Enum):
-    INITIALIZING = 0
-    RUNNING = 1
-    STOPPING = 2
-    FINISHED = 3
-
-class BaseProcess(Process):
+class RuntimeEnv(Process):
     def __init__(self, runtime_cls: Type[Runtime],
                  signal: Connection, args: List[Any] = [], kwargs: Dict[str, Any] = {}) -> None:
         super().__init__(args=args, kwargs={"runtime_cls": runtime_cls, "signal": signal, "kwargs": kwargs})
@@ -43,7 +39,7 @@ class BaseProcess(Process):
             try:
                 runtime.loop()
             except Exception as e:
-                print(e)
+                print("[%s] Exception: %s" % (runtime.__class__.__name__, e))
                 signal.send(Signals.ERROR)
                 exitcode = ExitCodes.RUNTIME_ERROR
                 break
@@ -58,13 +54,12 @@ class BaseProcess(Process):
 class GenericProcess(ABC):
     def __init__(self) -> None:
         super().__init__()
-        self._last_signal = None
-        self._process: BaseProcess | None = None
+        self._process: RuntimeEnv | None = None
         self._signal: Connection | None = None
         self._subscriber = set[GenericProcess]()
 
     @property
-    def process(self) -> BaseProcess:
+    def process(self) -> RuntimeEnv:
         assert self._process is not None
         return self._process
 
@@ -74,24 +69,11 @@ class GenericProcess(ABC):
         return self._signal
 
     @abstractmethod
-    def init(self) -> Tuple[BaseProcess, Connection]:
+    def init(self) -> Tuple[RuntimeEnv, Connection]:
         pass
 
     def depends(self, process: 'GenericProcess') -> None:
         process._subscriber.add(self)
-
-    @property
-    def state(self) -> State:
-        if self._last_signal is None:
-            return State.INITIALIZING
-        elif self.process.is_alive() and self._last_signal == Signals.INITIALIZED:
-            return State.RUNNING
-        elif self.process.is_alive() and (self._last_signal == Signals.STOP or self._last_signal == Signals.ERROR):
-            return State.STOPPING
-        elif not self.process.is_alive():
-            return State.FINISHED
-        else:
-            raise ValueError("Unknown state")
 
     def start(self) -> None:
         if self._process is not None:
@@ -101,10 +83,10 @@ class GenericProcess(ABC):
 
     def stop(self, timeout: int = 5) -> int | None:
         self.signal.send(Signals.STOP)
-        self._last_signal = Signals.STOP
         self.process.join(timeout)
         if self.process.is_alive():
             self.process.kill()
+            print("Timeout exceeded while stopping %s. It was forced to quit!" % self.__class__.__name__)
         exitcode = self.process.exitcode
         self._process = None
         return exitcode
@@ -117,8 +99,6 @@ class GenericProcess(ABC):
     
     def recv_signal(self) -> Signals | None:
         if self.signal.poll():
-            signal = self.signal.recv()
-            self._last_signal = signal
-            return signal
+            return self.signal.recv()
         else:
             return None

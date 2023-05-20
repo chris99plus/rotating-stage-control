@@ -2,9 +2,11 @@ from multiprocessing.connection import Connection
 from multiprocessing import Pipe
 from typing import Any, Dict, List, Tuple, cast
 
-from .process import BaseProcess, GenericProcess
+from .process import RuntimeEnv, GenericProcess
 from .runtime import Runtime
 from .sensors import AbsoluteSensor
+
+import time
 
 # The control process collects any data getting to the system. It contains
 # sensor readings and input commands.
@@ -32,12 +34,12 @@ class Control(GenericProcess):
         self.absolute_sensor = absolute_sensor
         self.depends(absolute_sensor)
 
-    def init(self) -> Tuple[BaseProcess, Connection]:
+    def init(self) -> Tuple[RuntimeEnv, Connection]:
         signal, runtime_signal = Pipe()
         kwargs = {
             "absolute_sensor_values": self.absolute_sensor.values
         }
-        return BaseProcess(ControlRuntime, runtime_signal, kwargs=kwargs), signal
+        return RuntimeEnv(ControlRuntime, runtime_signal, kwargs=kwargs), signal
 
     
         

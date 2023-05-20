@@ -6,7 +6,7 @@ import time
 import math
 
 from .runtime import Runtime
-from .process import GenericProcess, BaseProcess
+from .process import GenericProcess, RuntimeEnv
 
 class AbsoluteSensorRuntime(Runtime):
     def __init__(self, args: List[Any], kwargs: Dict[str, Any]) -> None:
@@ -82,10 +82,10 @@ class AbsoluteSensor(GenericProcess):
     def __init__(self) -> None:
         super().__init__()
 
-    def init(self) -> Tuple[BaseProcess, Connection]:
+    def init(self) -> Tuple[RuntimeEnv, Connection]:
         signal, runtime_signal = Pipe()
         self.values, runtime_value = Pipe()
         kwargs = {
             "values": runtime_value
         }
-        return BaseProcess(AbsoluteSensorRuntime, runtime_signal, kwargs=kwargs), signal
+        return RuntimeEnv(AbsoluteSensorRuntime, runtime_signal, kwargs=kwargs), signal
