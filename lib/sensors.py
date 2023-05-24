@@ -1,6 +1,7 @@
 from multiprocessing.connection import Connection
 from multiprocessing import Pipe
 from typing import Tuple
+from time import time
 
 from .runtime import Runtime
 from .process import GenericProcess, RuntimeEnvironment
@@ -11,6 +12,7 @@ class AbsoluteSensorRuntime(Runtime):
         super().__init__()
         self.values = values
         self.current_angle: float | None = None
+        self.last_value_time: float = time()
 
         # Function classes
         self.sensor: RotationSensor = None
@@ -24,7 +26,12 @@ class AbsoluteSensorRuntime(Runtime):
         if measurement is not None:
             assert measurement >= 0.0 and measurement < 360, "Expect angle measurement in range of [0, 360)"
             self.current_angle = measurement
+            self.last_value_time = time()
             self.values.send(self.current_angle)
+
+        # Check if values come regularly
+        if time() - self.last_value_time > 1:
+            raise Exception("Not enough angles measured in time")
 
     def stop(self) -> int | None:
         self.sensor.release()
