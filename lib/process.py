@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 import traceback
 import inspect
+import time
 
 from .runtime import Runtime, ExitCodes, App
 
@@ -109,6 +110,12 @@ class RuntimeEnvironment(Process):
             
             try:
                 runtime.loop()
+            except EOFError:
+                # EOFError is usually triggered if another process fails and
+                # closes its connections. The current process should try to live
+                # with this situation and is probably be shutdown or restarted
+                # by the main process. 
+                time.sleep(0.5)
             except Exception as e:
                 print("[%s] %s%s" % (runtime.__class__.__name__, e.__class__.__name__, ": %s" % e if str(e) != "" else ""))
                 print("[%s] %s" % (runtime.__class__.__name__, traceback.format_exc()))
