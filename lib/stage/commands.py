@@ -21,3 +21,11 @@ class Command:
         self.direction = direction
         self.speed = speed
         self.angle = angle
+
+    def is_run(self) -> bool:
+        return self.action == Command.Action.RUN_CONTINUOUS or \
+               self.action == Command.Action.RUN_TO_ANGLE
+    
+    def is_stop(self) -> bool:
+        return self.action == Command.Action.EMERGENCY_STOP or \
+               self.action == Command.Action.STOP

@@ -1,4 +1,4 @@
-from lib import Signals, Control, AbsoluteSensor
+from lib import Signals, Control, AbsoluteSensor, View
 import signal
 
 shutdown = False
@@ -12,11 +12,16 @@ def main():
     signal.signal(signal.SIGINT, graceful_shutdown)
     signal.signal(signal.SIGTERM, graceful_shutdown)
 
+    view = View()
     absolute_sensor = AbsoluteSensor()
-    control = Control(absolute_sensor)
+    control = Control(view, absolute_sensor)
 
-    absolute_sensor.start()
-    control.start()
+    try:
+        absolute_sensor.start()
+        view.start()
+        control.start()
+    except:
+        shutdown = True
 
     while not shutdown:
         csignal = control.recv_signal()
@@ -29,9 +34,15 @@ def main():
             if assignal == Signals.ERROR:
                 absolute_sensor.restart()
 
+        vsignal = view.recv_signal()
+        if vsignal is not None:
+            if vsignal == Signals.ERROR:
+                view.restart()
+
     print(f"... Received signal. Shutting down ...")
     print("Control exited with %s" % control.stop())
     print("Absolute sensor exited with %s" % absolute_sensor.stop())
+    print("View exited with %s" % view.stop())
 
 if "__main__" == __name__:
     main()

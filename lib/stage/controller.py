@@ -22,18 +22,25 @@ class StageController:
         self.frequency = 0.0
 
     def __call__(self, cmd: Command) -> None:
+        last_cmd = self.cmd
         self.cmd = cmd
 
         if self.pid is None:
             self.pid = PID(20, 10, 5)
             self.pid.error_map = pi_clip
 
-        if cmd.action == Command.Action.RUN_TO_ANGLE:
-            pass
-        self.pid.setpoint = math.radians(self.cmd.angle) - math.pi
-        self.pid.output_limits = (self.frequency_limits[0], self.frequency_limits[1] * self.cmd.speed)
+        if cmd.is_run():
+            if last_cmd.is_stop():
+                self.pid.set_auto_mode(True, last_output=self.frequency)
+            self.pid.setpoint = math.radians(self.cmd.angle) - math.pi
+            self.pid.output_limits = (self.frequency_limits[0], self.frequency_limits[1] * self.cmd.speed)
+        else:
+            self.pid.set_auto_mode(False)
+            self.frequency = 0.0
 
     def update(self, angle: float) -> None:
         """Angle of the sage in degrees"""
-        if self.pid is not None:
+        if self.pid is not None and self.cmd.is_run():
             self.frequency = self.pid(math.radians(angle) - math.pi)
+        else:
+            self.frequency = 0.0

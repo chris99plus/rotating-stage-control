@@ -34,7 +34,9 @@ class RuntimeEnvironment(Process):
         # Runtime startup
         try:
             runtime.setup()
-        except:
+        except Exception as e:
+            print("[%s] %s%s" % (runtime.__class__.__name__, e.__class__.__name__, ": %s" % e if str(e) != "" else ""))
+            print("[%s] %s" % (runtime.__class__.__name__, traceback.format_exc()))
             signal.send(Signals.ERROR)
             exit(ExitCodes.INIT_ERROR.value)
         
@@ -49,7 +51,6 @@ class RuntimeEnvironment(Process):
             try:
                 runtime.loop()
             except Exception as e:
-                e.__traceback__
                 print("[%s] %s%s" % (runtime.__class__.__name__, e.__class__.__name__, ": %s" % e if str(e) != "" else ""))
                 print("[%s] %s" % (runtime.__class__.__name__, traceback.format_exc()))
                 signal.send(Signals.ERROR)
@@ -110,6 +111,9 @@ class GenericProcess(ABC):
 
     def stop(self, timeout: int = 5) -> int | None:
         """Stops the runtime"""
+        if self._process is None:
+            return
+        
         try:
             self.signal.send(Signals.STOP)
         except BrokenPipeError:
