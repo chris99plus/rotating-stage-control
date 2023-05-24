@@ -27,7 +27,7 @@ class StageController:
         self.cmd = cmd
 
         if self.pid is None:
-            self.pid = PID(20, 10, 5)
+            self.pid = PID(10, 5, 1)
             self.pid.error_map = pi_clip
             self.pid.sample_time = 0.1 # (100 ms) in seconds
 
@@ -42,7 +42,7 @@ class StageController:
 
     def update(self, angle: float) -> bool:
         """Angle of the sage in degrees"""
-        assert angle > 0 and angle <= 360, "Expect angle to have a value range of [0, 360)"
+        assert angle >= 0 and angle < 360, "Expect angle to have a value range of [0, 360)"
         self.angle = angle
 
         last_frequency = self.frequency

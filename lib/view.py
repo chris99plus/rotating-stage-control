@@ -21,7 +21,7 @@ class ViewRuntime(Runtime):
     def loop(self):
         if not self.send:
             time.sleep(5)
-            self.commands.send(Command(Command.Action.RUN_TO_ANGLE, Command.Direction.COUNTERCLOCKWISE, 1, 180.0))
+            self.commands.send(Command(Command.Action.RUN_TO_ANGLE, Command.Direction.CLOCKWISE, 1, 90.0))
             self.send = True
 
     def stop(self) -> int | None:

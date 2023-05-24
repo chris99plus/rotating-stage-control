@@ -2,6 +2,7 @@ from typing import Any
 from abc import ABC, abstractmethod
 import cv2
 import math
+from time import time
 
 class RotationSensor(ABC):
     def init(self) -> None:
@@ -69,3 +70,32 @@ class OpticalRotationSensor(RotationSensor):
 
     def release(self) -> None:
         self.cap.release()
+
+class TestRotationSensor(RotationSensor):
+    def __init__(self, start_angle: float = 180.0, speed: float = 1.0, update_interval: int = 20, stage_diameter: float = 4.5) -> None:
+        super().__init__()
+        self.speed = speed
+        self.stage_diameter = stage_diameter
+        self.angular_velocity = 0.0  
+        self.current_angle = start_angle
+        self.update_interval = update_interval / 1000
+        self.last_update = time()
+        self.turn_forward = True
+
+    def update(self, forward: bool, frequency: float) -> None:
+        self.angular_velocity = (self.speed * (frequency / 60.0)) / (self.stage_diameter / 2) # speed: m/s, diameter: m, velocity: 1/s
+        self.turn_forward = forward
+
+    def measure_angle(self) -> float | None:
+        dt = time() - self.last_update
+        if dt > self.update_interval:
+            dr = math.degrees(self.angular_velocity * dt) # v * s = rad
+            if self.turn_forward:
+                self.current_angle += dr
+            else:
+                self.current_angle -= dr
+            self.current_angle = self.current_angle % 360
+            self.last_update = time()
+            return self.current_angle
+        else:
+            return None

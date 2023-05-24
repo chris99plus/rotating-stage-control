@@ -51,8 +51,8 @@ def main(args: argparse.Namespace):
     # Processes are initialized and started. If something fails,
     # the whole application should be closed. 
     view = View()
-    absolute_sensor = AbsoluteSensor()
-    control = Control(view, absolute_sensor, args.testing)
+    absolute_sensor = AbsoluteSensor(args.testing)
+    control = Control(view, absolute_sensor, debug, args.testing)
 
     try:
         absolute_sensor.start()

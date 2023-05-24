@@ -1,6 +1,7 @@
 from multiprocessing.connection import Connection
 from multiprocessing import Pipe
 from typing import Tuple
+from time import time
 import math
 
 from .process import RuntimeEnvironment, GenericProcess
@@ -14,7 +15,7 @@ from .stage.motor import FrequencyConverter, JSLSM100Converter, TestConverter
 # The control process collects any data getting to the system. It contains
 # sensor readings and input commands.
 class ControlRuntime(Runtime):
-    def __init__(self, cmds: Connection, asv: Connection, app: App, testing: bool) -> None:
+    def __init__(self, cmds: Connection, asv: Connection, app: App, testing: bool, debug: bool) -> None:
         super().__init__()
         self.app = app
 
@@ -27,7 +28,9 @@ class ControlRuntime(Runtime):
         self.motor: FrequencyConverter = None
 
         # State
-        self.testing: bool = testing
+        self.testing = testing
+        self.debug = debug
+        self.last_debug: float = time()
         self.current_angle: float = None
         self.motor_running: bool = False
         self.motor_running_forward: bool = True
@@ -69,22 +72,31 @@ class ControlRuntime(Runtime):
 
             if self.controller.update(self.current_angle):
                 self.motor.set_target_frequency(abs(self.controller.frequency))
-                self.app.send((self.current_angle, abs(self.controller.frequency)))
+
+                if self.testing:
+                    self.absolute_sensor_values.send((
+                        self.motor_turn_forward(self.controller.frequency, self.controller.cmd.direction),
+                        abs(self.controller.frequency)))
 
                 if math.isclose(self.controller.frequency, 0, rel_tol=1e-5):
                     self.motor_stop()
                 else:
                     self.motor_run(self.motor_turn_forward(self.controller.frequency, self.controller.cmd.direction))
 
+        if self.debug and time() - self.last_debug > 0.2:
+            self.app.send((self.current_angle, abs(self.controller.frequency)))
+            self.last_debug = time()
+
     def stop(self):
         self.motor.stop()
 
 class Control(GenericProcess):
-    def __init__(self, view: View, absolute_sensor: AbsoluteSensor, testing: bool = False) -> None:
+    def __init__(self, view: View, absolute_sensor: AbsoluteSensor, debug: bool = False, testing: bool = False) -> None:
         super().__init__()
         self.view = view
         self.absolute_sensor = absolute_sensor
         self.testing = testing
+        self.debug = debug
         self.depends(view)
         self.depends(absolute_sensor)
 
@@ -93,6 +105,7 @@ class Control(GenericProcess):
         kwargs = {
             "asv": self.absolute_sensor.values,
             "cmds": self.view.commands,
+            "debug": self.debug,
             "testing": self.testing
         }
         return RuntimeEnvironment(ControlRuntime, runtime_signal, kwargs=kwargs), signal
