@@ -5,17 +5,23 @@ from typing import Tuple
 from lib.process import RuntimeEnvironment
 from .runtime import Runtime
 from .process import GenericProcess
+from .stage.commands import Command
+
+import time
 
 class ViewRuntime(Runtime):
     def __init__(self, commands: Connection) -> None:
         super().__init__()
         self.commands = commands
+        self.send = False
 
     def setup(self):
         pass
 
     def loop(self):
-        pass
+        if not self.send:
+            time.sleep(5)
+            self.commands.send(Command(Command.Action.RUN_TO_ANGLE, Command.Direction.CLOCKWISE, 1, 180.0))
 
     def stop(self) -> int | None:
         pass

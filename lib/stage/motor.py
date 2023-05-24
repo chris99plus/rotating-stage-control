@@ -50,3 +50,33 @@ class JSLSM100Converter(FrequencyConverter):
 
     def emergency_stop(self) -> None:
         self.jslsm100.write_register(int('0x0006', 0), int('B4', 16), functioncode=6)
+
+class TestConverter(FrequencyConverter):
+    def __init__(self) -> None:
+        super().__init__()
+        self.frequency = 0.0
+        self.running = False
+        self.emergency = False
+
+    def set_target_frequency(self, frequency: float) -> None:
+        self.frequency = frequency
+        print("[Test Converter] Set target frequency to %.2f" % frequency)
+
+    def get_target_frequency(self) -> float:
+        return self.frequency
+
+    def get_current_frequency(self) -> float:
+        return self.frequency
+
+    def run(self, forward: bool) -> None:
+        self.running = True
+        print("[Test Converter] Set run command! Run %s" % ("forwards" if forward else "backwards"))
+
+    def stop(self) -> None:
+        self.running = False
+        print("[Test Converter] Set stop command!")
+
+    def emergency_stop(self) -> None:
+        self.running = False
+        self.emergency = True
+        print("[Test Converter] EMERGENCY STOP!!! Stopping immediately!")

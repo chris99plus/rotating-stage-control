@@ -1,6 +1,7 @@
 from lib import Signals, Control, AbsoluteSensor, View
 from lib.utility.plot import init_graphs, update_graphs, append_rotation_data
 import signal
+import math
 import argparse
 
 shutdown = False
@@ -14,6 +15,7 @@ def args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog='rsc')
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-t', '--testing', action='store_true')
     return parser.parse_args()
 
 def loop_view(view: View):
@@ -29,7 +31,7 @@ def loop_control(control: Control):
             control.restart()
         elif msg.signal == Signals.DATA:
             assert isinstance(msg.data, tuple)
-            append_rotation_data(msg.data[0], msg.data[1])
+            append_rotation_data(math.radians(msg.data[0]), msg.data[1])
 
 def loop_absolute_sensor(absolute_sensor: AbsoluteSensor):
     msg = absolute_sensor.recv()
@@ -50,7 +52,7 @@ def main(args: argparse.Namespace):
     # the whole application should be closed. 
     view = View()
     absolute_sensor = AbsoluteSensor()
-    control = Control(view, absolute_sensor)
+    control = Control(view, absolute_sensor, args.testing)
 
     try:
         absolute_sensor.start()
