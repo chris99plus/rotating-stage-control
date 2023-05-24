@@ -1,3 +1,4 @@
 minimalmodbus
 simple-pid
 opencv-python
+matplotlib

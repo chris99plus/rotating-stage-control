@@ -4,8 +4,9 @@ from typing import Type, cast, Dict, Any, List, Tuple
 from abc import ABC, abstractmethod
 from enum import Enum
 import traceback
+import inspect
 
-from .runtime import Runtime, ExitCodes
+from .runtime import Runtime, ExitCodes, App
 
 class Signals(Enum):
     """Signal send to and from a process to communicate its state or call for
@@ -13,6 +14,55 @@ class Signals(Enum):
     INITIALIZED = 0
     STOP = 1
     ERROR = 2
+    DATA = 3
+
+class Message:
+    """Message between processes. Mainly focused on the communication between
+    the main and child processes."""
+    def __init__(self, frame: tuple[Signals, Any]) -> None:
+        self.frame = frame
+
+    @property
+    def signal(self) -> Signals:
+        return self.frame[0]
+    
+    @property
+    def data(self) -> Any:
+        return self.frame[1]
+    
+    def send_on(self, c: Connection) -> None:
+        c.send(self.frame)
+
+    @staticmethod
+    def recv_from(c: Connection) -> 'Message':
+        frame = c.recv()
+        assert isinstance(frame, tuple), "Message expected a tuple, but got %s" % type(frame)
+        assert len(frame) == 2, "Expected a tuple with 2 elements, actual length is %i" % len(frame)
+        return Message(frame)
+
+    @staticmethod
+    def initialized_signal() -> 'Message':
+        return Message((Signals.INITIALIZED, None))
+
+    @staticmethod
+    def stop_signal() -> 'Message':
+        return Message((Signals.STOP, None))
+    
+    @staticmethod
+    def error_signal(e: Exception | None = None) -> 'Message':
+        return Message((Signals.ERROR, str(e)))
+    
+    @staticmethod
+    def data_signal(d: Any) -> 'Message':
+        return Message((Signals.DATA, d))
+    
+class AppProxy(App):
+    def __init__(self, signal: Connection) -> None:
+        super().__init__()
+        self.signal = signal
+
+    def send(self, data: Any) -> None:
+        Message.data_signal(data).send_on(self.signal)
 
 class RuntimeEnvironment(Process):
     """Python Process which contains a runtime and controls the runtime lifecycle."""
@@ -29,6 +79,15 @@ class RuntimeEnvironment(Process):
             4. Call stop method of runtime
         """
         signal  = cast(Connection, self._kwargs["signal"])
+        app_proxy = AppProxy(signal)
+
+        r = cast(Type[Runtime], self._kwargs["runtime_cls"])
+        runtime_init_sig = inspect.signature(r.__init__)
+
+        if 'app' in runtime_init_sig.parameters and \
+            isinstance(app_proxy, runtime_init_sig.parameters['app'].annotation):
+            self._kwargs["kwargs"]['app'] = app_proxy
+
         runtime = cast(Type[Runtime], self._kwargs["runtime_cls"])(*self._args, **self._kwargs["kwargs"])
 
         # Runtime startup
@@ -37,10 +96,10 @@ class RuntimeEnvironment(Process):
         except Exception as e:
             print("[%s] %s%s" % (runtime.__class__.__name__, e.__class__.__name__, ": %s" % e if str(e) != "" else ""))
             print("[%s] %s" % (runtime.__class__.__name__, traceback.format_exc()))
-            signal.send(Signals.ERROR)
+            Message.error_signal(e).send_on(signal)
             exit(ExitCodes.INIT_ERROR.value)
         
-        signal.send(Signals.INITIALIZED)
+        Message.initialized_signal().send_on(signal)
         
         # Runtime loop
         exitcode = ExitCodes.SUCCESS
@@ -53,14 +112,16 @@ class RuntimeEnvironment(Process):
             except Exception as e:
                 print("[%s] %s%s" % (runtime.__class__.__name__, e.__class__.__name__, ": %s" % e if str(e) != "" else ""))
                 print("[%s] %s" % (runtime.__class__.__name__, traceback.format_exc()))
-                signal.send(Signals.ERROR)
+                Message.error_signal(e).send_on(signal)
                 exitcode = ExitCodes.RUNTIME_ERROR
                 break
 
         # Runtime shutdown
         try:
             stop_returncode = runtime.stop()
-        except Exception:
+        except Exception as e:
+            print("[%s] %s%s" % (runtime.__class__.__name__, e.__class__.__name__, ": %s" % e if str(e) != "" else ""))
+            print("[%s] %s" % (runtime.__class__.__name__, traceback.format_exc()))
             exit(ExitCodes.SHUTDOWN_ERROR)
         
         if stop_returncode is not None:
@@ -103,7 +164,7 @@ class GenericProcess(ABC):
             return
         self._process, self._signal = self.init()
         self.process.start()
-        if self._signal.poll(timeout) and self.recv_signal() == Signals.INITIALIZED:
+        if self._signal.poll(timeout) and self.recv().signal == Signals.INITIALIZED:
             return
         else:
             self.stop()
@@ -136,9 +197,9 @@ class GenericProcess(ABC):
         self.start()
         [p.start() for p in self._subscriber]
     
-    def recv_signal(self) -> Signals | None:
+    def recv(self) -> Message | None:
         """Return app signal if a new signal is available"""
         if self.signal.poll():
-            return self.signal.recv()
+            return Message.recv_from(self.signal)
         else:
             return None
