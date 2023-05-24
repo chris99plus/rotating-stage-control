@@ -16,6 +16,27 @@ def args() -> argparse.Namespace:
     parser.add_argument('-d', '--debug', action='store_true')
     return parser.parse_args()
 
+def loop_view(view: View):
+    msg = view.recv()
+    if msg is not None:
+        if msg.signal == Signals.ERROR:
+            view.restart()
+
+def loop_control(control: Control):
+    msg = control.recv()
+    if msg is not None:
+        if msg.signal == Signals.ERROR:
+            control.restart()
+        elif msg.signal == Signals.DATA:
+            assert isinstance(msg.data, tuple)
+            append_rotation_data(msg.data[0], msg.data[1])
+
+def loop_absolute_sensor(absolute_sensor: AbsoluteSensor):
+    msg = absolute_sensor.recv()
+    if msg is not None:
+        if msg.signal == Signals.ERROR:
+            absolute_sensor.restart()
+
 def main(args: argparse.Namespace):
     global shutdown
     global debug
@@ -24,6 +45,9 @@ def main(args: argparse.Namespace):
 
     debug = args.debug
 
+    # Initialization
+    # Processes are initialized and started. If something fails,
+    # the whole application should be closed. 
     view = View()
     absolute_sensor = AbsoluteSensor()
     control = Control(view, absolute_sensor)
@@ -35,6 +59,7 @@ def main(args: argparse.Namespace):
     except:
         shutdown = True
 
+    # Loop
     try:
         if debug:
             init_graphs()
@@ -42,24 +67,11 @@ def main(args: argparse.Namespace):
         while not shutdown:
             if debug:
                 update_graphs()
-            
-            csmsg = control.recv()
-            if csmsg is not None:
-                if csmsg.signal == Signals.ERROR:
-                    control.restart()
-                elif csmsg.signal == Signals.DATA:
-                    assert isinstance(csmsg.data, tuple)
-                    append_rotation_data(csmsg.data[0], csmsg.data[1])
-            
-            asmsg = absolute_sensor.recv()
-            if asmsg is not None:
-                if asmsg.signal == Signals.ERROR:
-                    absolute_sensor.restart()
-
-            vmsg = view.recv()
-            if vmsg is not None:
-                if vmsg.signal == Signals.ERROR:
-                    view.restart()
+            loop_absolute_sensor(absolute_sensor)
+            loop_view(view)
+            loop_control(control)
+    
+    # Shutdown
     finally:
         print(f"... Received signal. Shutting down ...")
         print("Control exited with %s" % control.stop())
