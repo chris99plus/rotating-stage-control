@@ -3,14 +3,14 @@ from multiprocessing import Pipe
 from typing import Tuple, cast
 from time import time
 
-from .runtime import Runtime
+from .runtime import Runtime, App
 from .process import GenericProcess, RuntimeEnvironment
 from .sensor.rotation import RotationSensor, OpticalRotationSensor, TestRotationSensor
 
 class AbsoluteSensorRuntime(Runtime):
-    def __init__(self, values: Connection, testing: bool) -> None:
+    def __init__(self, values: Connection, app: App) -> None:
         super().__init__()
-        self.testing = testing
+        self.app = app
         self.values = values
         self.current_angle: float | None = None
         self.last_value_time: float = time()
@@ -19,7 +19,7 @@ class AbsoluteSensorRuntime(Runtime):
         self.sensor: RotationSensor = None
 
     def setup(self) -> None:
-        self.sensor = OpticalRotationSensor() if not self.testing else TestRotationSensor()
+        self.sensor = OpticalRotationSensor() if not self.app.is_testing_enabled else TestRotationSensor()
         self.sensor.init()
 
     def loop(self) -> None:
@@ -34,7 +34,7 @@ class AbsoluteSensorRuntime(Runtime):
         if time() - self.last_value_time > 1:
             raise Exception("Not enough angles measured in time")
         
-        if self.testing and self.values.poll():
+        if self.app.is_testing_enabled and self.values.poll():
             cast(TestRotationSensor, self.sensor).update(*self.values.recv())
 
 
@@ -42,15 +42,10 @@ class AbsoluteSensorRuntime(Runtime):
         self.sensor.release()
 
 class AbsoluteSensor(GenericProcess):
-    def __init__(self, testing: bool) -> None:
-        super().__init__()
-        self.testing = testing
-
     def init(self) -> Tuple[RuntimeEnvironment, Connection]:
         signal, runtime_signal = Pipe()
         self.values, runtime_value = Pipe()
         kwargs = {
-            "values": runtime_value,
-            "testing": self.testing
+            "values": runtime_value
         }
         return RuntimeEnvironment(AbsoluteSensorRuntime, runtime_signal, kwargs=kwargs), signal

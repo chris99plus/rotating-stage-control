@@ -1,6 +1,6 @@
 from multiprocessing import Process
 from multiprocessing.connection import Connection
-from typing import Type, cast, Dict, Any, List, Tuple
+from typing import Type, cast, Dict, Any, List, Tuple, Callable
 from abc import ABC, abstractmethod
 from enum import Enum
 import traceback
@@ -15,7 +15,8 @@ class Signals(Enum):
     INITIALIZED = 0
     STOP = 1
     ERROR = 2
-    DATA = 3
+    CONFIG = 3
+    DATA = 4
 
 class Message:
     """Message between processes. Mainly focused on the communication between
@@ -54,6 +55,14 @@ class Message:
         return Message((Signals.ERROR, str(e)))
     
     @staticmethod
+    def config_signal(section: str, option: str, t: Type) -> 'Message':
+        return Message((Signals.CONFIG, (section, option, t)))
+    
+    @staticmethod
+    def config_signal_response(section: str, option: str, data: Any) -> 'Message':
+        return Message((Signals.CONFIG, (section, option, data)))
+
+    @staticmethod
     def data_signal(d: Any) -> 'Message':
         return Message((Signals.DATA, d))
     
@@ -61,14 +70,42 @@ class AppProxy(App):
     def __init__(self, signal: Connection) -> None:
         super().__init__()
         self.signal = signal
+        self.config = {}
 
     def send(self, data: Any) -> None:
         Message.data_signal(data).send_on(self.signal)
 
+    def get_config(self, section: str, option: str, t: Type = str, default: Any = None, timeout: float = 2.0) -> Any:
+        Message.config_signal(section, option, t).send_on(self.signal)
+        if self.signal.poll(timeout):
+            ans = Message.recv_from(self.signal)
+            assert ans.signal == Signals.CONFIG, ("Expected config signal. Got %s" % ans.signal)
+            assert isinstance(ans.data, tuple) and len(ans.data) == 3, "Expected tuple response of length 3"
+            assert ans.data[0] == section or ans.data[1] == option, (
+                "Config section or option does not match in the response. Got [%s].%s" % (ans.data[0], ans.data[1]))
+            if ans.data[2] is None:
+                return default
+            else:
+                return ans.data[2]
+        raise Exception("Failed to get config value %s.%s" % (section, option))
+
+    def setup(self) -> None:
+        self.config['debug'] = self.get_config('DEFAULT', 'debug', bool)
+        self.config['testing'] = self.get_config('DEFAULT', 'testing', bool)
+
+    @property
+    def is_testing_enabled(self) -> bool:
+        return self.config['testing'] == True
+    
+    @property
+    def is_debug_enabled(self) -> bool:
+        return self.config['debug'] == True
+
 class RuntimeEnvironment(Process):
     """Python Process which contains a runtime and controls the runtime lifecycle."""
     def __init__(self, runtime_cls: Type[Runtime],
-                 signal: Connection, args: List[Any] = [], kwargs: Dict[str, Any] = {}) -> None:
+                 signal: Connection, args: List[Any] = [],
+                 kwargs: Dict[str, Any] = {}) -> None:
         super().__init__(args=args, kwargs={"runtime_cls": runtime_cls, "signal": signal, "kwargs": kwargs})
 
     def run(self):
@@ -93,6 +130,7 @@ class RuntimeEnvironment(Process):
 
         # Runtime startup
         try:
+            app_proxy.setup()
             runtime.setup()
         except Exception as e:
             print("[%s] %s%s" % (runtime.__class__.__name__, e.__class__.__name__, ": %s" % e if str(e) != "" else ""))
@@ -105,7 +143,7 @@ class RuntimeEnvironment(Process):
         # Runtime loop
         exitcode = ExitCodes.SUCCESS
         while True:
-            if signal.poll() and signal.recv() == Signals.STOP:
+            if signal.poll() and Message.recv_from(signal).signal == Signals.STOP:
                 break
             
             try:
@@ -165,15 +203,27 @@ class GenericProcess(ABC):
         """Defines the dependency to another process."""
         process._subscriber.add(self)
 
-    def start(self, timeout: int = 30) -> None:
+    def start(self, config_callback: Callable[['GenericProcess', Message], None], timeout: int = 30) -> None:
         """Start the runtime"""
         if self._process is not None:
             return
         self._process, self._signal = self.init()
         self.process.start()
-        if self._signal.poll(timeout) and self.recv().signal == Signals.INITIALIZED:
-            return
-        else:
+
+        starting = True
+        initialized = False
+        init_started = time.time()
+        while starting:
+            msg = self.recv()
+            if msg is not None and msg.signal == Signals.INITIALIZED:
+                initialized = True
+                starting = False
+            elif msg is not None and msg.signal == Signals.CONFIG:
+                config_callback(self, msg)
+
+            if time.time() - init_started > timeout:
+                starting = False
+        if not initialized:
             self.stop()
             raise Exception("Initializing process %s failed." % self.__class__.__name__)
 
@@ -183,7 +233,7 @@ class GenericProcess(ABC):
             return
         
         try:
-            self.signal.send(Signals.STOP)
+            Message.stop_signal().send_on(self.signal)
         except BrokenPipeError:
             print("Pipe broke while trying to stop %s. Continue with process shutdown." % self.__class__.__name__)
         
@@ -195,14 +245,14 @@ class GenericProcess(ABC):
         self._process = None
         return exitcode
     
-    def restart(self, timeout: int = 5):
+    def restart(self, config_callback: Callable[['GenericProcess', Message], None], timeout: int = 5):
         """Restarts the runtime. Dependent processes are restarted as well, to
         ensure the functionality of shared pipes. Be aware, that only directly
         connected processes are restarted."""
         self.stop(timeout)
         [p.stop() for p in self._subscriber]
-        self.start()
-        [p.start() for p in self._subscriber]
+        self.start(config_callback)
+        [p.start(config_callback) for p in self._subscriber]
     
     def recv(self) -> Message | None:
         """Return app signal if a new signal is available"""

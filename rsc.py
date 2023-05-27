@@ -1,15 +1,13 @@
-from lib import Signals, Control, AbsoluteSensor, View
+from lib import App, Signals, Control, AbsoluteSensor, View
 from lib.utility.plot import init_graphs, update_graphs, append_rotation_data
 import signal
 import math
 import argparse
-
-shutdown = False
-debug = False
+import traceback
 
 def graceful_shutdown(_, __):
-    global shutdown
-    shutdown = True
+    global app
+    app.exit()
 
 def args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -22,52 +20,60 @@ def loop_view(view: View):
     msg = view.recv()
     if msg is not None:
         if msg.signal == Signals.ERROR:
-            view.restart()
+            view.restart(app.send_config_to)
+        elif msg.signal == Signals.CONFIG:
+            app.send_config_to(view, msg)
 
 def loop_control(control: Control):
     msg = control.recv()
     if msg is not None:
         if msg.signal == Signals.ERROR:
-            control.restart()
+            control.restart(app.send_config_to)
         elif msg.signal == Signals.DATA:
             assert isinstance(msg.data, tuple)
             append_rotation_data(math.radians(msg.data[0]), msg.data[1])
+        elif msg.signal == Signals.CONFIG:
+            app.send_config_to(control, msg)
 
 def loop_absolute_sensor(absolute_sensor: AbsoluteSensor):
     msg = absolute_sensor.recv()
     if msg is not None:
         if msg.signal == Signals.ERROR:
-            absolute_sensor.restart()
+            absolute_sensor.restart(app.send_config_to)
+        elif msg.signal == Signals.CONFIG:
+            app.send_config_to(absolute_sensor, msg)
 
 def main(args: argparse.Namespace):
-    global shutdown
-    global debug
+    global app
+    app = App(args.debug, args.testing)
+
     signal.signal(signal.SIGINT, graceful_shutdown)
     signal.signal(signal.SIGTERM, graceful_shutdown)
-
-    debug = args.debug
 
     # Initialization
     # Processes are initialized and started. If something fails,
     # the whole application should be closed. 
     view = View()
-    absolute_sensor = AbsoluteSensor(args.testing)
-    control = Control(view, absolute_sensor, debug, args.testing)
+    absolute_sensor = AbsoluteSensor()
+    control = Control(view, absolute_sensor)
 
     try:
-        absolute_sensor.start()
-        view.start()
-        control.start()
-    except:
-        shutdown = True
+        absolute_sensor.start(app.send_config_to)
+        view.start(app.send_config_to)
+        control.start(app.send_config_to)
+    except Exception as e:
+        print("Failed to initialize app!")
+        print("[ERROR] %s" % str(e))
+        print(traceback.format_exc())
+        app.exit()
 
     # Loop
     try:
-        if debug:
+        if app.is_debug_enabled:
             init_graphs()
 
-        while not shutdown:
-            if debug:
+        while not app.shutdown:
+            if app.is_debug_enabled:
                 update_graphs()
             loop_absolute_sensor(absolute_sensor)
             loop_view(view)

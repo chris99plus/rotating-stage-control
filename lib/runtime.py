@@ -17,6 +17,20 @@ class App(ABC):
     def send(self, data: Any) -> None:
         pass
 
+    @abstractmethod
+    def get_config(self, key: str, default: Any = None, timeout: float = 2.0) -> Any:
+        pass
+
+    @property
+    @abstractmethod
+    def is_testing_enabled(self) -> bool:
+        pass
+    
+    @property
+    @abstractmethod
+    def is_debug_enabled(self) -> bool:
+        pass
+
 class Runtime(ABC):
     """Recurring tasks with great importance or high computational costs run in
     their own runtime, which itself runs in a seperate process. This runtime is

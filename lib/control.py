@@ -15,7 +15,7 @@ from .stage.motor import FrequencyConverter, JSLSM100Converter, TestConverter
 # The control process collects any data getting to the system. It contains
 # sensor readings and input commands.
 class ControlRuntime(Runtime):
-    def __init__(self, cmds: Connection, asv: Connection, app: App, testing: bool, debug: bool) -> None:
+    def __init__(self, cmds: Connection, asv: Connection, app: App) -> None:
         super().__init__()
         self.app = app
 
@@ -28,8 +28,6 @@ class ControlRuntime(Runtime):
         self.motor: FrequencyConverter = None
 
         # State
-        self.testing = testing
-        self.debug = debug
         self.last_debug: float = time()
         self.current_angle: float = None
         self.motor_running: bool = False
@@ -55,7 +53,7 @@ class ControlRuntime(Runtime):
 
     def setup(self):
         self.controller = StageController()
-        self.motor = JSLSM100Converter(1) if not self.testing else TestConverter()
+        self.motor = JSLSM100Converter(1) if not self.app.is_testing_enabled else TestConverter()
 
     def loop(self):
         if self.commands.poll():
@@ -73,7 +71,7 @@ class ControlRuntime(Runtime):
             if self.controller.update(self.current_angle):
                 self.motor.set_target_frequency(abs(self.controller.frequency))
 
-                if self.testing:
+                if self.app.is_testing_enabled:
                     self.absolute_sensor_values.send((
                         self.motor_turn_forward(self.controller.frequency, self.controller.cmd.direction),
                         abs(self.controller.frequency)))
@@ -83,7 +81,7 @@ class ControlRuntime(Runtime):
                 else:
                     self.motor_run(self.motor_turn_forward(self.controller.frequency, self.controller.cmd.direction))
 
-        if self.debug and time() - self.last_debug > 0.2:
+        if self.app.is_debug_enabled and time() - self.last_debug > 0.2:
             self.app.send((self.current_angle, abs(self.controller.frequency)))
             self.last_debug = time()
 
@@ -91,12 +89,10 @@ class ControlRuntime(Runtime):
         self.motor.stop()
 
 class Control(GenericProcess):
-    def __init__(self, view: View, absolute_sensor: AbsoluteSensor, debug: bool = False, testing: bool = False) -> None:
+    def __init__(self, view: View, absolute_sensor: AbsoluteSensor) -> None:
         super().__init__()
         self.view = view
         self.absolute_sensor = absolute_sensor
-        self.testing = testing
-        self.debug = debug
         self.depends(view)
         self.depends(absolute_sensor)
 
@@ -104,9 +100,7 @@ class Control(GenericProcess):
         signal, runtime_signal = Pipe()
         kwargs = {
             "asv": self.absolute_sensor.values,
-            "cmds": self.view.commands,
-            "debug": self.debug,
-            "testing": self.testing
+            "cmds": self.view.commands
         }
         return RuntimeEnvironment(ControlRuntime, runtime_signal, kwargs=kwargs), signal
 
