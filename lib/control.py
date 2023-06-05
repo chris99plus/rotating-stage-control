@@ -8,7 +8,7 @@ from .process import RuntimeEnvironment, GenericProcess
 from .runtime import Runtime, App
 from .sensors import AbsoluteSensor
 from .view import View
-from .stage.controller import StageController
+from .stage.controller import StageMotorController, StageAngleController, StageAnglePID
 from .stage.commands import Command
 from .stage.motor import FrequencyConverter, JSLSM100Converter, TestConverter
 
@@ -24,69 +24,49 @@ class ControlRuntime(Runtime):
         self.absolute_sensor_values = asv
 
         # Function classes
-        self.controller: StageController = None
-        self.motor: FrequencyConverter = None
+        self.motor_controller: StageMotorController = None
 
         # State
         self.last_debug: float = time()
-        self.current_angle: float = None
-        self.motor_running: bool = False
-        self.motor_running_forward: bool = True
-
-    def motor_run(self, forward: bool):
-        if not self.motor_running or self.motor_running_forward != forward:
-            self.motor.run(forward)
-            self.motor_running_forward = forward
-            self.motor_running = True
-
-    def motor_stop(self):
-        if self.motor_running:
-            self.motor.stop()
-            self.motor_running = False
-
-    def motor_turn_forward(self, frequency: float, direction: Command.Direction) -> bool:
-        turn_forward = direction == Command.Direction.CLOCKWISE
-        if frequency > 0.0:
-            return turn_forward
-        elif self.controller.frequency < 0.0:
-            return not turn_forward
 
     def setup(self):
-        self.controller = StageController()
-        self.motor = JSLSM100Converter(1) if not self.app.is_testing_enabled else TestConverter()
+        converter = JSLSM100Converter(1) if not self.app.is_testing_enabled else TestConverter()
+        angle_pid = StageAnglePID(30, 2)
+        angle_controller = StageAngleController(angle_pid)
+        self.controller = StageMotorController(angle_controller, converter)
 
     def loop(self):
+        # Update controller
+        if self.controller.update() and self.app.is_testing_enabled:
+            self.absolute_sensor_values.send((self.controller.motor_running_forward, self.controller.converter.get_current_frequency()))
+
+        # Update angles
+        if self.absolute_sensor_values.poll():
+            actual_angle = self.absolute_sensor_values.recv()
+            self.controller.angle_controller.set_measurement(actual_angle)
+
+        # Update commands
         if self.commands.poll():
             cmd = self.commands.recv()
             assert isinstance(cmd, Command), "Received non command type from the command connection"
-            self.controller(cmd)
-
+            
             if cmd.action == Command.Action.EMERGENCY_STOP:
-                self.motor.emergency_stop()
-                self.motor_running = False
-        
-        if self.absolute_sensor_values.poll():
-            self.current_angle = self.absolute_sensor_values.recv()
+                self.controller.emergency_stop()
+            elif cmd.action == Command.Action.RUN_TO_ANGLE:
+                if not self.controller.angle_controller.set_command(cmd):
+                    # TODO: Notify, that set command does not work at the moment
+                    pass
+            else:
+                # TODO: Other modes
+                pass
 
-            if self.controller.update(self.current_angle):
-                self.motor.set_target_frequency(abs(self.controller.frequency))
-
-                if self.app.is_testing_enabled:
-                    self.absolute_sensor_values.send((
-                        self.motor_turn_forward(self.controller.frequency, self.controller.cmd.direction),
-                        abs(self.controller.frequency)))
-
-                if math.isclose(self.controller.frequency, 0, rel_tol=1e-5):
-                    self.motor_stop()
-                else:
-                    self.motor_run(self.motor_turn_forward(self.controller.frequency, self.controller.cmd.direction))
-
+        # Update debug
         if self.app.is_debug_enabled and time() - self.last_debug > 0.2:
-            self.app.send((self.current_angle, abs(self.controller.frequency)))
+            self.app.send((self.controller.angle_controller.actual_angle, abs(self.controller.actual_frequency)))
             self.last_debug = time()
 
     def stop(self):
-        self.motor.stop()
+        self.controller.converter.stop()
 
 class Control(GenericProcess):
     def __init__(self, view: View, absolute_sensor: AbsoluteSensor) -> None:
