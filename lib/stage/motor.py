@@ -28,18 +28,28 @@ class FrequencyConverter(ABC):
 
 class JSLSM100Converter(FrequencyConverter):
     """Read and writes Parameters to the frequency converter"""
-    def __init__(self, converter_address: int, port: str = '/dev/ttyUSB1') -> None:
+    def __init__(self, converter_address: int, port: str = '/dev/serial0', debug: bool = False) -> None:
         super().__init__()
-        self.jslsm100 = minimalmodbus.Instrument(port, converter_address, mode=minimalmodbus.MODE_RTU)
+        self.jslsm100 = minimalmodbus.Instrument(port, converter_address, mode=minimalmodbus.MODE_RTU, debug=debug)
+
+    def reg_addr(self, hex_addr: str) -> int:
+        return int(hex_addr, 0) - 1
+    
+    def read_reg(self, hex_addr: str) -> int | float:
+        return self.jslsm100.read_register(self.reg_addr(hex_addr), functioncode=3)
+
+    def version(self) -> tuple[int, int]:
+        version = self.read_reg('0x0003')
+        return (version >> 8, version & 0x00ff)
 
     def set_target_frequency(self, frequency: float) -> None:
         self.jslsm100.write_register(int('0x0005', 0), int(round(frequency, 2) / 0.01), functioncode=6)
 
     def get_target_frequency(self) -> float:
-        return self.jslsm100.read_register(int('0x0005', 0), functioncode=3) * 0.01
+        return self.read_reg('0x0005') * 0.01
     
     def get_current_frequency(self) -> float:
-        return self.jslsm100.read_float(int('0x000A', 0), functioncode=3) * 0.01
+        return self.read_reg('0x000A') * 0.01
     
     def run(self, forward: bool) -> None:
         run_value = int('B1', 16) if forward else int('B2', 16)

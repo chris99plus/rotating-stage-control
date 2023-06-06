@@ -1,4 +1,7 @@
-from lib import App, Signals, Control, AbsoluteSensor, View
+from lib.app import App, Signals
+from lib.control import Control
+from lib.sensors import AbsoluteSensor
+from lib.view import View
 from lib.utility.plot import init_graphs, update_graphs, append_rotation_data
 import signal
 import math
