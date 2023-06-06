@@ -60,16 +60,15 @@ class StageAngleController:
         self.desired_angle = cmd.angle
         self.angle_increment = 0.0
         if cmd.direction == Command.Direction.CLOCKWISE:
-            print(self.actual_angle, cmd.angle)
             if self.actual_angle > cmd.angle:
                 self.angle_pid.setpoint = 360 - self.actual_angle + cmd.angle
             else:
-                self.angle_pid.setpoint = cmd.angle
+                self.angle_pid.setpoint = cmd.angle - self.actual_angle 
         elif cmd.direction == Command.Direction.COUNTERCLOCKWISE:
             if self.actual_angle < cmd.angle:
                 self.angle_pid.setpoint = self.actual_angle + 360 - cmd.angle
             else:
-                self.angle_pid.setpoint = cmd.angle
+                self.angle_pid.setpoint = self.actual_angle - cmd.angle
         else:
             raise ValueError("Invalid direction")
         self.current_command = cmd
@@ -91,9 +90,10 @@ class StageAngleController:
                 else:
                     self.angle_increment = self.angle_increment + self.actual_angle + 360 - actual_angle
             self.angle_increment %= 360
-            self.actual_angle = actual_angle
             frequency = self.angle_pid.update(self.angle_increment)
             self.frequency = 0.0 if abs(frequency) < 1.0 else frequency
+        
+        self.actual_angle = actual_angle
 
 class StageMotorController:
     def __init__(self, angle_controller: StageAngleController, converter: FrequencyConverter) -> None:
@@ -103,9 +103,20 @@ class StageMotorController:
         self.motor_running: bool = False
         self.motor_running_forward: bool = True 
 
+    @property
+    def is_running_forward(self) -> bool:
+        direction = self.angle_controller.current_command.direction == Command.Direction.CLOCKWISE
+        return direction if self.desired_frequency > 0 else not direction
+    
+    @property
+    def desired_frequency(self) -> float | None:
+        freq = self.angle_controller.frequency or 0.0
+        return round(freq, 2)
+
     def emergency_stop(self) -> None:
         self.converter.emergency_stop()
-        self.motor_running = False       
+        self.motor_running = False
+
 
     def update(self) -> bool:
         # Check if update can be made
@@ -118,7 +129,7 @@ class StageMotorController:
             self.motor_running = False
             return True
         elif abs(desired_frequency) >= 1.0 and not self.motor_running:
-            self.motor_running_forward = self.angle_controller.current_command.direction == Command.Direction.CLOCKWISE
+            self.motor_running_forward = self.is_running_forward
             self.motor_running = True
             self.converter.run(self.motor_running_forward)
             return True

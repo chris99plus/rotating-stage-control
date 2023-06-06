@@ -61,7 +61,7 @@ class ControlRuntime(Runtime):
                 pass
 
         # Update debug
-        if self.app.is_debug_enabled and time() - self.last_debug > 0.2:
+        if self.app.is_debug_enabled and time() - self.last_debug > 0.2 and self.controller.angle_controller.actual_angle is not None:
             self.app.send((self.controller.angle_controller.actual_angle, abs(self.controller.actual_frequency)))
             self.last_debug = time()
 
