@@ -52,11 +52,19 @@ class JSLSM100Converter(FrequencyConverter):
         return self.read_reg('0x000A') * 0.01
     
     def run(self, forward: bool) -> None:
-        run_value = int('B1', 16) if forward else int('B2', 16)
-        self.jslsm100.write_register(int('0x0006', 0), run_value, functioncode=6)
+        current = self.read_reg('0x0006')
+        current = current & 0b1111111111100000
+
+        run_value = 0b00010 if forward else 0b00100
+        new_value = current + run_value
+        self.jslsm100.write_register(self.reg_addr('0x0006'), new_value, functioncode=6)
 
     def stop(self) -> None:
-        self.jslsm100.write_register(int('0x0006', 0), int('B0', 16), functioncode=6)
+        current = self.read_reg('0x0006')
+        current = current & 0b1111111111100000
+
+        new_value = current + 0b00001
+        self.jslsm100.write_register(self.reg_addr('0x0006'), new_value, functioncode=6)
 
     def emergency_stop(self) -> None:
         self.jslsm100.write_register(int('0x0006', 0), int('B4', 16), functioncode=6)
