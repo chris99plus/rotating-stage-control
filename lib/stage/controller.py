@@ -1,18 +1,7 @@
-from typing import Any
 from simple_pid import PID
-import math
 
 from .commands import Command
 from .motor import FrequencyConverter
-
-def pi_clip(angle):
-    if angle > 0:
-        if angle > math.pi:
-            return angle - 2*math.pi
-    else:
-        if angle < -math.pi:
-            return angle + 2*math.pi
-    return angle
 
 class StageAnglePID:
     def __init__(self, max_frequency: float, kp: float, ki: float = 0, kd: float = 0) -> None:
