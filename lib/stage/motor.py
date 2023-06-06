@@ -35,7 +35,7 @@ class JSLSM100Converter(FrequencyConverter):
     def reg_addr(self, hex_addr: str) -> int:
         return int(hex_addr, 0) - 1
     
-    def read_reg(self, hex_addr: str) -> (int | float):
+    def read_reg(self, hex_addr: str) -> int | float:
         return self.jslsm100.read_register(self.reg_addr(hex_addr), functioncode=3)
 
     def version(self) -> tuple[int, int]:
