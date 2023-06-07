@@ -2,7 +2,6 @@ import configparser
 from typing import Iterable
 
 from .process import GenericProcess, Message, Signals
-from .utility.types import str2bool
 
 class App:
     def __init__(self, debug: bool, testing: bool):
@@ -17,11 +16,11 @@ class App:
     
     @property
     def is_debug_enabled(self) -> bool:
-        return str2bool(self._config['DEFAULT']['debug'])
+        return self._config.getboolean('DEFAULT', 'debug', fallback=False)
     
     @property
     def is_testing_enabled(self) -> bool:
-        return str2bool(self._config['DEFAULT']['testing'])
+        return self._config.getboolean('DEFAULT', 'testing', fallback=False)
     
     def exit(self) -> None:
         self._shutdown = True
