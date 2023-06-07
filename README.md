@@ -1,5 +1,10 @@
 # rotating-stage-control
 
+## Install
+```
+curl https://raw.githubusercontent.com/chris99plus/rotating-stage-control/main/get-rsc.sh | sh
+```
+
 ## Requirements
 - Processing of input commands
 - Send commands to motor controller
