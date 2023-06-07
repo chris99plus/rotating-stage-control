@@ -29,4 +29,8 @@ cd ~
 git clone https://github.com/chris99plus/rotating-stage-control.git
 cd rotating-stage-control
 
+sudo raspi-config nonint do_serial 2
+
 python -m pip install -r requirements.txt
+
+reboot
