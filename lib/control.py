@@ -2,7 +2,6 @@ from multiprocessing.connection import Connection
 from multiprocessing import Pipe
 from typing import Tuple
 from time import time
-import math
 
 from .process import RuntimeEnvironment, GenericProcess
 from .runtime import Runtime, App
@@ -10,7 +9,7 @@ from .sensors import AbsoluteSensor
 from .view import View
 from .stage.controller import StageMotorController, StageAngleController, StageAnglePID
 from .stage.commands import Command
-from .stage.motor import FrequencyConverter, JSLSM100Converter, TestConverter
+from .stage.motor import JSLSM100Converter, TestConverter
 
 # The control process collects any data getting to the system. It contains
 # sensor readings and input commands.
