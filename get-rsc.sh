@@ -25,4 +25,8 @@ sudo update-alternatives --install /usr/bin/python python /opt/python/3.10.11/bi
 curl -O https://bootstrap.pypa.io/get-pip.py
 sudo /opt/python/3.10.11/bin/python3.10 get-pip.py
 
+cd ~
 git clone https://github.com/chris99plus/rotating-stage-control.git
+cd rotating-stage-control
+
+python -m pip install -r requirements.txt
