@@ -20,7 +20,7 @@ sudo rm /tmp/Python-3.10.11.tgz
 
 sudo /opt/python/3.10.11/bin/python3.10 -m pip install --upgrade pip setuptools wheel
 
-sudo update-alternatives --install /usr/bin/python python /opt/python/3.10.11/bin/python3.10
+sudo update-alternatives --install /usr/bin/python python /opt/python/3.10.11/bin/python3.10 1
 
 curl -O https://bootstrap.pypa.io/get-pip.py
 sudo /opt/python/3.10.11/bin/python3.10 get-pip.py
