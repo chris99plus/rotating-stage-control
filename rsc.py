@@ -34,7 +34,8 @@ def loop_control(control: Control):
             control.restart(app.send_config_to)
         elif msg.signal == Signals.DATA:
             assert isinstance(msg.data, tuple)
-            append_rotation_data(math.radians(msg.data[0]), msg.data[1])
+            if app.is_debug_enabled:
+                append_rotation_data(math.radians(msg.data[0]), msg.data[1])
         elif msg.signal == Signals.CONFIG:
             app.send_config_to(control, msg)
 
