@@ -1,6 +1,7 @@
 from typing import Any
 from abc import ABC, abstractmethod
 import cv2
+import numpy as np
 import math
 from time import time
 
@@ -16,8 +17,9 @@ class RotationSensor(ABC):
         pass
 
 class OpticalRotationSensor(RotationSensor):
-    def __init__(self, camera: int = 0, number_of_tracker: int = 36, ) -> None:
+    def __init__(self, camera: int = 0, number_of_tracker: int = 36, debug: bool = False) -> None:
         super().__init__()
+        self.debug = debug
         self.camera = camera
         self.number_of_tracker = number_of_tracker
         self.aruco_dict: Any = None
@@ -32,44 +34,65 @@ class OpticalRotationSensor(RotationSensor):
         # Initialize the camera capture
         self.cap = cv2.VideoCapture(self.camera)
 
-    def calculate_angle(self, vector1, vector2):
-        angle_radians = math.atan2(vector2[1], vector2[0]) - math.atan2(vector1[1], vector1[0])
-        angle_degrees = math.degrees(angle_radians)
+    def calculate_median_angle(angles):
+        angles_in_radians = np.radians(angles)
+        sorted_angles = np.sort(angles_in_radians)
+        num_angles = len(sorted_angles)
 
-        # Adjust the angle to be within the range of 0 to 360 degrees
-        #angle_degrees %= 360
-        return angle_degrees
+        # Calculate the average of two angles considering the wrapping around case
+        def average_angle(angle1, angle2):
+            diff = (angle2 - angle1 + np.pi) % (2 * np.pi) - np.pi
+            return (angle1 + diff / 2) % (2 * np.pi)
+
+        if num_angles % 2 == 1:
+            # If there are odd number of angles, return the middle angle
+            median_angle = np.degrees(sorted_angles[num_angles // 2])
+        else:
+            # If there are even number of angles, return the average of the two middle angles
+            middle_idx = num_angles // 2
+            median_angle = np.degrees(average_angle(sorted_angles[middle_idx - 1], sorted_angles[middle_idx]))
+        
+        return median_angle
 
     def measure_angle(self) -> float | None:
         # Read a frame from the camera
-        _, frame = self.cap.read()
-        angel_dif = 360 / self.number_of_tracker
+        ret, frame = self.cap.read()
+
 
         # Detect ArUco markers in the frame
         detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
-        corners, ids, _ = detector.detectMarkers(frame)
-        angle_count = 0
+        corners, ids, rejectedImgPoints = detector.detectMarkers(frame)
+
+        angles = []
+        angel_dif = 360 / self.number_of_tracker
+        
         # If a marker was detected, calculate its rotation
         if ids is not None:
             for index, i in enumerate(corners):
-                translated_corners = i[0]
+                try:
+                    ids_tmp = ids[index][0]
+                except:
+                    ids_tmp = ids
 
-                vector_rectangel = translated_corners[0] - translated_corners[1]
-                vector_base = [0, 1]
-                angle = self.calculate_angle(vector_rectangel, vector_base)
-                
-                ids_tmp = ids[index][0]
-            
-                angle -= angel_dif * (ids_tmp)
-
+                angle = angel_dif * (ids_tmp)
                 angle %= 360
-                angle_count += angle
-            return angle_count / len(ids)
+                angles.append(angle)
+            caluclated_angle = self.calculate_median_angle(angles)
         else:
             return None
+        
+        # Display the frame
+        if self.debug:
+            # Draw the detected markers on the frame
+            frame_markers = cv2.aruco.drawDetectedMarkers(frame, corners, ids)
+            cv2.imshow('ArUco Tracker', frame_markers)
+
+        return caluclated_angle
 
     def release(self) -> None:
         self.cap.release()
+        if self.debug:
+            cv2.destroyAllWindows()
 
 class TestRotationSensor(RotationSensor):
     def __init__(self, start_angle: float = 180.0, speed: float = 1.0, update_interval: int = 20, stage_diameter: float = 4.5) -> None:
