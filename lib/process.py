@@ -105,8 +105,9 @@ class RuntimeEnvironment(Process):
     """Python Process which contains a runtime and controls the runtime lifecycle."""
     def __init__(self, runtime_cls: Type[Runtime],
                  signal: Connection, args: List[Any] = [],
-                 kwargs: Dict[str, Any] = {}) -> None:
+                 kwargs: Dict[str, Any] = {}, min_loop_duration: int = 5) -> None:
         super().__init__(args=args, kwargs={"runtime_cls": runtime_cls, "signal": signal, "kwargs": kwargs})
+        self.min_loop_duration = min_loop_duration
 
     def run(self):
         """Run method is executed inside the process and implements the runtime
@@ -127,6 +128,8 @@ class RuntimeEnvironment(Process):
             self._kwargs["kwargs"]['app'] = app_proxy
 
         runtime = cast(Type[Runtime], self._kwargs["runtime_cls"])(*self._args, **self._kwargs["kwargs"])
+        min_duration_loop = self.min_loop_duration / 1000
+        last_loop = time.time()
 
         # Runtime startup
         try:
@@ -160,6 +163,13 @@ class RuntimeEnvironment(Process):
                 Message.error_signal(e).send_on(signal)
                 exitcode = ExitCodes.RUNTIME_ERROR
                 break
+
+            # The CPU of the PI is blocked by all the loop. Further the loop is
+            # stopped if it does nothing and is to fast.
+            loop_duration = time.time() - last_loop
+            if loop_duration < min_duration_loop:
+                time.sleep(min_duration_loop - loop_duration)
+            last_loop = time.time()
 
         # Runtime shutdown
         try:
