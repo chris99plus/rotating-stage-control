@@ -69,6 +69,9 @@ class JSLSM100Converter(FrequencyConverter):
     def get_state(self) -> str:
         current = self.read_reg('0x000E')
         return "{0:b}".format(current)
+    
+    def get_power(self) -> float:
+        return self.read_reg('0x000D') * 0.1
 
     def emergency_stop(self) -> None:
         self.jslsm100.write_register(int('0x0006', 0), int('B4', 16), functioncode=6)
