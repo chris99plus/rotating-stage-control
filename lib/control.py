@@ -82,8 +82,9 @@ class ControlRuntime(Runtime):
                 elif cmd.action == Command.Action.RUN_CONTINUOUS:
                     self.set_intermediate_RUN_TO_ANGLE_command(270)
                 elif cmd.action == Command.Action.STOP:
-                    self.active_command = Command(cmd.action, last_active_command.direction, cmd.speed)
-                    self.set_intermediate_RUN_TO_ANGLE_command(self.stop_angle * cmd.speed)
+                    if not self.controller.stopped:
+                        self.active_command = Command(cmd.action, last_active_command.direction, cmd.speed)
+                        self.set_intermediate_RUN_TO_ANGLE_command(self.stop_angle * cmd.speed)
                 else:
                     raise ValueError("Unknown command action")
 

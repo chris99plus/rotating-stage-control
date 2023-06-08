@@ -122,6 +122,10 @@ class StageMotorController:
     def desired_frequency(self) -> float | None:
         freq = self.angle_controller.frequency or 0.0
         return round(freq, 2)
+    
+    @property
+    def stopped(self) -> bool:
+        return not self.motor_running
 
     def emergency_stop(self) -> None:
         self.converter.emergency_stop()
