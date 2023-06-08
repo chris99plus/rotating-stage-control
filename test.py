@@ -10,6 +10,6 @@ if __name__ == "__main__":
     
     while True:
         print("  State: %s" % motor.get_state())
-        print("  Power: %s kW" % motor.get_power())
+        print("  Power: %.2f A" % motor.get_power())
         print("  Frequency (current, target): %.2f, %.2f" % ( motor.get_current_frequency(), motor.get_target_frequency()))
         time.sleep(0.5)
