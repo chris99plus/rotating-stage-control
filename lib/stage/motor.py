@@ -43,7 +43,7 @@ class JSLSM100Converter(FrequencyConverter):
         return (version >> 8, version & 0x00ff)
 
     def set_target_frequency(self, frequency: float) -> None:
-        self.jslsm100.write_register(int('0x0005', 0), int(round(frequency, 2) / 0.01), functioncode=6)
+        self.jslsm100.write_register(self.reg_addr('0x0005'), int(round(frequency, 2) / 0.01), functioncode=6)
 
     def get_target_frequency(self) -> float:
         return self.read_reg('0x0005') * 0.01
