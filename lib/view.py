@@ -34,7 +34,7 @@ class ViewRuntime(Runtime):
         dispatcher.map("/run/*", self.osc_set_run)
         dispatcher.map("/direction", self.osc_set_direction)
 
-        self.osc = ThreadingOSCUDPServer(("127.0.0.1", 1337), dispatcher)
+        self.osc = ThreadingOSCUDPServer(("0.0.0.0", 1337), dispatcher)
         self.osc.timeout = 0.1
 
     def loop(self):
