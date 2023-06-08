@@ -66,9 +66,9 @@ class JSLSM100Converter(FrequencyConverter):
         new_value = current + 0b00001
         self.jslsm100.write_register(self.reg_addr('0x0006'), new_value, functioncode=6)
 
-    def get_emergency_stop(self) -> None:
-        current = self.read_reg('0x0006')
-        return bool(current & 0b0000000000010000)
+    def get_state(self) -> str:
+        current = self.read_reg('0x000E')
+        return "{0:b}".format(current)
 
     def emergency_stop(self) -> None:
         self.jslsm100.write_register(int('0x0006', 0), int('B4', 16), functioncode=6)
