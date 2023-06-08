@@ -9,5 +9,8 @@ if __name__ == "__main__":
     print("")
     
     while True:
-        print("  Frequency (current, target): %.2f, %.2f" % ( motor.get_current_frequency(), motor.get_target_frequency()))
+        if motor.get_emergency_stop():
+            print("  Emergency stop active")
+        else:
+            print("  Frequency (current, target): %.2f, %.2f" % ( motor.get_current_frequency(), motor.get_target_frequency()))
         time.sleep(0.5)
