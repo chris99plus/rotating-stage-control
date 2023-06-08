@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Type
 from abc import ABC, abstractmethod
 from enum import Enum
 
@@ -18,7 +18,7 @@ class App(ABC):
         pass
 
     @abstractmethod
-    def get_config(self, key: str, default: Any = None, timeout: float = 2.0) -> Any:
+    def get_config(self, section: str, option: str, t: Type = str, default: Any = None, timeout: float = 2.0) -> Any:
         pass
 
     @property

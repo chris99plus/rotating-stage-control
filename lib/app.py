@@ -34,7 +34,8 @@ class App:
         
         res = None
         if msg.data[0] not in self._config or msg.data[1] not in self._config[msg.data[0]]:
-            print("Requested config [%s].%s does not exists" % (msg.data[0], msg.data[1]))  
+            if self.is_debug_enabled:
+                print("[DEBUG] Requested config [%s].%s does not exists" % (msg.data[0], msg.data[1])) 
         elif msg.data[2] == int:
             res = self._config.getint(msg.data[0], msg.data[1], fallback=None)
         elif msg.data[2] == bool:

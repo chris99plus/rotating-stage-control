@@ -21,7 +21,10 @@ class ViewRuntime(Runtime):
     def loop(self):
         if not self.send:
             time.sleep(5)
-            self.commands.send(Command(Command.Action.RUN_TO_ANGLE, Command.Direction.COUNTERCLOCKWISE, 1, 190))
+            self.commands.send(Command(Command.Action.RUN_CONTINUOUS, Command.Direction.COUNTERCLOCKWISE, 0.5))
+            time.sleep(10)
+            #self.commands.send(Command(Command.Action.RUN_TO_ANGLE, Command.Direction.COUNTERCLOCKWISE, 1, 135))
+            self.commands.send(Command(Command.Action.STOP))
             self.send = True
 
     def stop(self) -> int | None:

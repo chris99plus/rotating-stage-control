@@ -17,6 +17,7 @@ def args() -> argparse.Namespace:
         prog='rsc')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-t', '--testing', action='store_true')
+    parser.add_argument('-c', '--config')
     return parser.parse_args()
 
 def loop_view(view: View):
@@ -53,6 +54,10 @@ def main(args: argparse.Namespace):
 
     signal.signal(signal.SIGINT, graceful_shutdown)
     signal.signal(signal.SIGTERM, graceful_shutdown)
+
+    # Read configuration
+    if args.config is not None:
+        app.read_config(args.config)
 
     # Initialization
     # Processes are initialized and started. If something fails,

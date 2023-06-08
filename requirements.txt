@@ -3,3 +3,4 @@ simple-pid
 opencv-python
 matplotlib
 numpy
+python-osc

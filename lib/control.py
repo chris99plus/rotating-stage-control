@@ -10,6 +10,7 @@ from .view import View
 from .stage.controller import StageMotorController, StageAngleController, StageAnglePID
 from .stage.commands import Command
 from .stage.motor import JSLSM100Converter, TestConverter
+from .utility.angle import angle_add, angle_subtract
 
 # The control process collects any data getting to the system. It contains
 # sensor readings and input commands.
@@ -23,16 +24,25 @@ class ControlRuntime(Runtime):
         self.absolute_sensor_values = asv
 
         # Function classes
-        self.motor_controller: StageMotorController = None
+        self.controller: StageMotorController = None
 
         # State
         self.last_debug: float = time()
+        self.last_measurement: float = time()
+        self.active_command: Command = Command(Command.Action.STOP)
 
     def setup(self):
-        converter = JSLSM100Converter(1) if not self.app.is_testing_enabled else TestConverter()
-        angle_pid = StageAnglePID(30, 2)
+        converter = JSLSM100Converter(self.app.get_config('motor', 'address', int, 1)) if not self.app.is_testing_enabled else TestConverter()
+        angle_pid = StageAnglePID(
+            self.app.get_config('motor', 'max_frequency', float, 40),
+            self.app.get_config('motor', 'min_frequency', float, 0.5),
+            self.app.get_config('control', 'angle_pid_kp', float, 2))
         angle_controller = StageAngleController(angle_pid)
         self.controller = StageMotorController(angle_controller, converter)
+
+        # Config
+        self.max_measurement_duration = self.app.get_config('control', 'max_measurement_duration', int, 100) / 1000
+        self.stop_angle = self.app.get_config('control', 'stop_angle', float, 90.0)
 
     def loop(self):
         # Update controller
@@ -43,6 +53,15 @@ class ControlRuntime(Runtime):
         if self.absolute_sensor_values.poll():
             actual_angle = self.absolute_sensor_values.recv()
             self.controller.angle_controller.set_measurement(actual_angle)
+            self.last_measurement = time()
+
+        # Check angle update duration. If this class is missing angle updates
+        # the stage rotation should be stopped immediately.
+        if time() - self.last_measurement > self.max_measurement_duration:
+            invalid_angle = True
+            self.emergency_stop()
+        else:
+            invalid_angle = False
 
         # Update commands
         if self.commands.poll():
@@ -50,14 +69,28 @@ class ControlRuntime(Runtime):
             assert isinstance(cmd, Command), "Received non command type from the command connection"
             
             if cmd.action == Command.Action.EMERGENCY_STOP:
-                self.controller.emergency_stop()
-            elif cmd.action == Command.Action.RUN_TO_ANGLE:
-                if not self.controller.angle_controller.set_command(cmd):
-                    # TODO: Notify, that set command does not work at the moment
-                    pass
-            else:
-                # TODO: Other modes
-                pass
+                self.emergency_stop()
+
+            # Update commands only if angle measurements are present. Otherwise
+            # the rotation is stopped.
+            if not invalid_angle:
+                last_active_command = self.active_command
+                self.active_command = cmd
+                if cmd.action == Command.Action.RUN_TO_ANGLE:
+                    if not self.controller.angle_controller.set_command(cmd):
+                        raise Exception("Could not set RUN_TO_ANGLE command on angle controller")
+                elif cmd.action == Command.Action.RUN_CONTINUOUS:
+                    self.set_intermediate_RUN_TO_ANGLE_command(270)
+                elif cmd.action == Command.Action.STOP:
+                    self.active_command = Command(cmd.action, last_active_command.direction, cmd.speed)
+                    self.set_intermediate_RUN_TO_ANGLE_command(self.stop_angle * cmd.speed)
+                else:
+                    raise ValueError("Unknown command action")
+
+        # Update intermediate command of RUN_CONTINUOUS
+        if self.active_command.action == Command.Action.RUN_CONTINUOUS:
+            if self.controller.angle_controller.progress > 50:
+                self.set_intermediate_RUN_TO_ANGLE_command(270)
 
         # Update debug
         if self.app.is_debug_enabled and time() - self.last_debug > 0.2 and self.controller.angle_controller.actual_angle is not None:
@@ -66,6 +99,17 @@ class ControlRuntime(Runtime):
 
     def stop(self):
         self.controller.converter.stop()
+
+    def emergency_stop(self):
+        self.controller.emergency_stop()
+        self.active_command = Command(Command.Action.EMERGENCY_STOP)
+
+    def set_intermediate_RUN_TO_ANGLE_command(self, angle: float):
+        cur_angle = self.controller.angle_controller.actual_angle
+        int_angle = angle_add(cur_angle, angle) if self.active_command.direction == Command.Direction.CLOCKWISE else angle_subtract(cur_angle, angle)
+        int_cmd = Command(Command.Action.RUN_TO_ANGLE, self.active_command.direction, self.active_command.speed, int_angle)
+        if not self.controller.angle_controller.set_command(int_cmd):
+            raise Exception("Could not set intermediate command on angle controller")
 
 class Control(GenericProcess):
     def __init__(self, view: View, absolute_sensor: AbsoluteSensor) -> None:

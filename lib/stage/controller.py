@@ -4,8 +4,9 @@ from .commands import Command
 from .motor import FrequencyConverter
 
 class StageAnglePID:
-    def __init__(self, max_frequency: float, kp: float, ki: float = 0, kd: float = 0) -> None:
+    def __init__(self, max_frequency: float, min_frequency: float, kp: float, ki: float = 0, kd: float = 0) -> None:
         self._max_frequency = max_frequency
+        self._min_frequency = min_frequency
         self._actual_value: float = 0.0
         self._control_frequency: float | None = None
         
@@ -17,6 +18,10 @@ class StageAnglePID:
     @property
     def max_frequency(self) -> float:
         return self._max_frequency
+    
+    @property
+    def min_frequency(self) -> float:
+        return self._min_frequency
 
     @property
     def setpoint(self) -> float:
@@ -28,6 +33,16 @@ class StageAnglePID:
         self.pid(0)
         self.pid.setpoint = value
         self.pid.set_auto_mode(True, last_output=self._actual_value)
+
+    @property
+    def speed(self) -> float:
+        return self.pid.output_limits[1] / self.max_frequency
+    
+    @speed.setter
+    def speed(self, value) -> None:
+        freq = self.max_frequency * value
+        freq = freq if freq >= self.min_frequency else self.min_frequency
+        self.pid.output_limits = (-1 * freq, freq)
 
     def update(self, actual_value: float) -> float | None:
         self._control_frequency = self.pid(actual_value)
@@ -42,7 +57,12 @@ class StageAngleController:
         self.frequency: float | None = None
         self.current_command: Command | None = None
 
+    @property
+    def progress(self) -> int:
+        return round(self.angle_increment / self.angle_pid.setpoint * 100)
+
     def set_command(self, cmd: Command) -> bool:
+        assert cmd.action == Command.Action.RUN_TO_ANGLE, "StageAngleController can only process RUN_TO_ANGLE commands"
         if self.actual_angle is None:
             return False
         
@@ -60,6 +80,7 @@ class StageAngleController:
                 self.angle_pid.setpoint = self.actual_angle - cmd.angle
         else:
             raise ValueError("Invalid direction")
+        self.angle_pid.speed = cmd.speed
         self.current_command = cmd
         return True
 
@@ -105,7 +126,6 @@ class StageMotorController:
     def emergency_stop(self) -> None:
         self.converter.emergency_stop()
         self.motor_running = False
-
 
     def update(self) -> bool:
         # Check if update can be made
