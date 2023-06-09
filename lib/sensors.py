@@ -2,44 +2,80 @@ from multiprocessing.connection import Connection
 from multiprocessing import Pipe
 from typing import Tuple, cast
 from time import time
+from enum import Enum
 
 from .runtime import Runtime, App
 from .process import GenericProcess, RuntimeEnvironment
 from .sensor.rotation import RotationSensor, OpticalRotationSensor, TestRotationSensor
+from .sensor.speed import SpeedSensor, AngularSpeedSensor
+
+class Sensor(Enum):
+    STAGE_ABSOLUTE_ANGLE = 0
+    STAGE_SPEED = 1
 
 class AbsoluteSensorRuntime(Runtime):
     def __init__(self, values: Connection, app: App) -> None:
         super().__init__()
         self.app = app
+
+        # Connections
         self.values = values
-        self.current_angle: float | None = None
-        self.last_value_time: float = time()
 
         # Function classes
-        self.sensor: RotationSensor = None
+        self.angle_sensor: RotationSensor = None
+        self.speed_sensor: SpeedSensor = None
+
+        # State
+        self.current_angle: float | None = None
+        self.current_speed: float | None = None
+        self.last_angle_measurement: float = None
+        self.last_speed_measurement: float = None
+
+        # Const
+        self.angle_sensor_timeout = self.app.get_config('sensors', 'angle_sensor_timeout', float, 1)
+        self.speed_sensor_timeout = self.app.get_config('sensors', 'speed_sensor_timeout', float, 1)
 
     def setup(self) -> None:
-        self.sensor = OpticalRotationSensor() if not self.app.is_testing_enabled else TestRotationSensor()
-        self.sensor.init()
+        self.angle_sensor = OpticalRotationSensor(self.app.get_config('sensors', 'camera_index', int, 0)) if not self.app.is_testing_enabled else TestRotationSensor()
+        self.speed_sensor = AngularSpeedSensor(self.angle_sensor, self.app.get_config('DEFAULT', 'stage_diameter', float, 4.5))
+        self.angle_sensor.init()
+        self.speed_sensor.init()
+
+        self.last_angle_measurement = time()
+        self.last_speed_measurement = time()
 
     def loop(self) -> None:
-        measurement = self.sensor.measure_angle()
-        if measurement is not None:
-            assert measurement >= 0.0 and measurement < 360, "Expect angle measurement in range of [0, 360)"
-            self.current_angle = measurement
-            self.last_value_time = time()
-            self.values.send(self.current_angle)
+        send_queue: list[tuple[Sensor, float]] = []
+
+        angle = self.angle_sensor.measure_angle()
+        if angle is not None:
+            assert angle >= 0.0 and angle < 360, "Expect angle measurement in range of [0, 360)"
+            self.current_angle = angle
+            self.last_angle_measurement = time()
+            send_queue.append((Sensor.STAGE_ABSOLUTE_ANGLE, self.current_angle))
+
+        speed = self.speed_sensor.measure_speed()
+        if speed is not None:
+            self.current_speed = speed
+            self.last_speed_measurement = time()
+            send_queue.append((Sensor.STAGE_SPEED, self.current_speed))
 
         # Check if values come regularly
-        if time() - self.last_value_time > 1:
-            raise Exception("Not enough angles measured in time")
+        if time() - self.last_angle_measurement > self.angle_sensor_timeout:
+            raise Exception("Not enough absolute angles measured in time")
         
-        if self.app.is_testing_enabled and self.values.poll():
-            cast(TestRotationSensor, self.sensor).update(*self.values.recv())
+        if time() - self.last_speed_measurement > self.speed_sensor_timeout:
+            raise Exception("Not enough speed points measured in time")
 
+        if self.app.is_testing_enabled and self.values.poll():
+            cast(TestRotationSensor, self.angle_sensor).update(*self.values.recv())
+
+        if len(send_queue) > 0:
+            self.values.send(send_queue)
 
     def stop(self) -> int | None:
-        self.sensor.release()
+        self.speed_sensor.release()
+        self.angle_sensor.release()
 
 class AbsoluteSensor(GenericProcess):
     def init(self) -> Tuple[RuntimeEnvironment, Connection]:
