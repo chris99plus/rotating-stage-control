@@ -36,8 +36,11 @@ class AngularSpeedSensor(SpeedSensor):
         dt = sensor_recording - self.last_angle_recording
         if dt > 0:
             da = self.last_angle.delta(sensor_angle)
-            s = math.radians(da) * self.stage_diameter / 2
-            speed = s / dt
+            if da > 1:
+                s = math.radians(da) * self.stage_diameter / 2
+                speed = s / dt
+            else:
+                speed = 0
             print("Speed Debug", dt, da, s, speed)
 
             # Update values
