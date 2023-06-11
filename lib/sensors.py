@@ -2,16 +2,12 @@ from multiprocessing.connection import Connection
 from multiprocessing import Pipe
 from typing import Tuple, cast
 from time import time
-from enum import Enum
 
 from .runtime import Runtime, App
 from .process import GenericProcess, RuntimeEnvironment
 from .sensor.rotation import RotationSensor, OpticalRotationSensor, TestRotationSensor
 from .sensor.speed import SpeedSensor, AngularSpeedSensor
-
-class Sensor(Enum):
-    STAGE_ABSOLUTE_ANGLE = 0
-    STAGE_SPEED = 1
+from .sensor import Sensor
 
 class AbsoluteSensorRuntime(Runtime):
     def __init__(self, values: Connection, app: App) -> None:
@@ -49,10 +45,9 @@ class AbsoluteSensorRuntime(Runtime):
 
         angle = self.angle_sensor.measure_angle()
         if angle is not None:
-            assert angle >= 0.0 and angle < 360, "Expect angle measurement in range of [0, 360)"
             self.current_angle = angle
             self.last_angle_measurement = time()
-            send_queue.append((Sensor.STAGE_ABSOLUTE_ANGLE, self.current_angle))
+            send_queue.append((Sensor.STAGE_ABSOLUTE_ANGLE, float(self.current_angle)))
 
         speed = self.speed_sensor.measure_speed()
         if speed is not None:

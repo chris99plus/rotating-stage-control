@@ -22,6 +22,10 @@ class Command:
         self.speed = speed
         self.angle = angle
 
+    @property
+    def turn_clockwise(self) -> bool:
+        return self.direction == Command.Direction.CLOCKWISE
+
     def is_run(self) -> bool:
         return self.action == Command.Action.RUN_CONTINUOUS or \
                self.action == Command.Action.RUN_TO_ANGLE
