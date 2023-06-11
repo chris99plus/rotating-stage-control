@@ -31,18 +31,18 @@ class AngularSpeedSensor(SpeedSensor):
             return None
         
         assert self.last_angle is not None and self.last_angle_recording is not None
-        sensor_angle = self.angle_sensor.last_angle
+        sensor_angle = round(self.angle_sensor.last_angle)
         sensor_recording = self.angle_sensor.last_angle_recording
         dt = sensor_recording - self.last_angle_recording
         if dt > 0:
             da = self.last_angle.delta(sensor_angle)
             s = math.radians(da) * self.stage_diameter / 2
-            speed = s / dt#
-            print("Speed Debug", da, s, speed)
+            speed = s / dt
+            print("Speed Debug", dt, da, s, speed)
 
             # Update values
             self.last_angle_recording = self.angle_sensor.last_angle_recording
-            self.last_angle = self.angle_sensor.last_angle
+            self.last_angle = round(self.angle_sensor.last_angle)
             return speed
         else:
             return None
