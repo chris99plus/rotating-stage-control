@@ -44,7 +44,7 @@ class AngularSpeedSensor(SpeedSensor):
 
             # Update values
             self.last_angle_recording = self.angle_sensor.last_angle_recording
-            self.last_angle_avg = self.last_angle_avg[-5:]
+            self.last_angle_avg = self.last_angle_avg[-10:]
             self.last_angle = sensor_angle
             return speed
         else:
