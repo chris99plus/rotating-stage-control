@@ -19,7 +19,6 @@ class AngularSpeedSensor(SpeedSensor):
     def __init__(self, angle_sensor: RotationSensor, stage_diameter: float) -> None:
         self.angle_sensor = angle_sensor
         self.stage_diameter = stage_diameter
-        self.stage_circumference = math.pi * stage_diameter
         self.last_angle_recording: float | None = None
         self.last_angle: Angle | None = None
 
@@ -37,8 +36,9 @@ class AngularSpeedSensor(SpeedSensor):
         dt = sensor_recording - self.last_angle_recording
         if dt > 0:
             da = self.last_angle.delta(sensor_angle)
-            s = math.radians(da) * self.stage_circumference / 2
-            speed = s / dt
+            s = math.radians(da) * self.stage_diameter / 2
+            speed = s / dt#
+            print("Speed Debug", da, s, speed)
 
             # Update values
             self.last_angle_recording = self.angle_sensor.last_angle_recording
