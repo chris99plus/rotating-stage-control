@@ -41,7 +41,7 @@ class AngularSpeedSensor(SpeedSensor):
                 speed = s / dt
                 print("Speed Debug", dt, da, s, speed)
             else:
-                speed = 0
+                speed = 0.0
                 print("Speed Debug", dt, speed)
 
             # Update values
