@@ -5,7 +5,7 @@ from lib.utility.angle import Angle
 # This class controls the speed based on a desired angle which is requested by
 # the user.
 class StageAngleController:
-    def __init__(self, kp: float) -> None:
+    def __init__(self, kp: float, ki: float, kd: float) -> None:
         self._control_speed: float | None = None
         self._angle_increment = Angle(0)
         self._desired_angle: Angle | None = None
@@ -13,9 +13,9 @@ class StageAngleController:
         self._actual_angle: Angle | None = None
         
         # PID
-        self._pid = PID(kp)
+        self._pid = PID(kp, ki, kd)
         self._pid.sample_time = 0.1 # (100 ms)
-        self._pid.output_limits = (-1.0 , 1.0) # -1 m/s to 1 m/s
+        self._pid.output_limits = (0, 1.0) # -1 m/s to 1 m/s
 
     @property
     def speed(self) -> float:
@@ -64,7 +64,7 @@ class StageAngleController:
         self._pid(0)
         self._angle_increment = Angle(0)
         self._pid.setpoint = float(control_angle)
-        self._pid.output_limits = (-1 * speed, speed)
+        self._pid.output_limits = (0, speed)
         self._pid.set_auto_mode(True, last_output=self._control_speed)
         print(self._pid.output_limits, self._control_speed)
 

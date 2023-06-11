@@ -4,13 +4,13 @@ from simple_pid import PID
 # Controls the frequency of the motor based on the expected and actual speed of
 # the stage.
 class StageSpeedController:
-    def __init__(self, max_frequency: float, kp: float, ki: float) -> None:
+    def __init__(self, max_frequency: float, kp: float, ki: float, kd: float) -> None:
         self._control_frequency: float | None = None
         self._desired_speed: float | None = None
         self._actual_speed: float | None = None
 
         # PID
-        self._pid = PID(kp, ki)
+        self._pid = PID(kp, ki, kd)
         self._pid.sample_time = 0.05 # (50 ms)
         self._pid.output_limits = (0, max_frequency)
 

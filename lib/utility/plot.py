@@ -1,4 +1,7 @@
 import matplotlib.pyplot as plt
+import math
+
+MAX_FREQUENCY = 40
 
 def on_close(_):
     global closed
@@ -20,6 +23,9 @@ def init_graphs():
     rotation_r = []
     rotation_theta = []
 
+    rotation_ax.set_rlim(top=MAX_FREQUENCY)
+    rotation_ax.set_theta_direction(-1)
+    rotation_ax.set_theta_offset(math.radians(90))
     rotation_ax.grid(True)
     rotation_ax.plot(rotation_theta, rotation_r)
 
@@ -28,6 +34,8 @@ def init_graphs():
 
 def update_graphs():
     if closed: return
+    rotation_ax.autoscale(False)
+    rotation_ax.set_rlim(top=MAX_FREQUENCY)
     fig.canvas.draw()
     fig.canvas.flush_events()
 

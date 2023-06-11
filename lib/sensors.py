@@ -26,7 +26,6 @@ class AbsoluteSensorRuntime(Runtime):
         self.current_speed: float | None = None
         self.last_angle_measurement: float = None
         self.last_speed_measurement: float = None
-        self.turn_clockwise: bool = True
 
         # Const
         self.angle_sensor_timeout = self.app.get_config('sensors', 'angle_sensor_timeout', float, 1)
@@ -50,7 +49,7 @@ class AbsoluteSensorRuntime(Runtime):
             self.last_angle_measurement = time()
             send_queue.append((Sensor.STAGE_ABSOLUTE_ANGLE, float(self.current_angle)))
 
-        speed = self.speed_sensor.measure_speed(self.turn_clockwise)
+        speed = self.speed_sensor.measure_speed()
         if speed is not None:
             self.current_speed = speed
             self.last_speed_measurement = time()
@@ -66,9 +65,7 @@ class AbsoluteSensorRuntime(Runtime):
         while self.values.poll():
             msg = self.values.recv()
             assert len(msg) >= 2 and isinstance(msg[0], str)
-            if msg[0] == 'direction':
-                self.turn_clockwise = msg[1]
-            elif msg[0] == 'debug' and self.app.is_testing_enabled:
+            if msg[0] == 'debug' and self.app.is_testing_enabled:
                 cast(TestRotationSensor, self.angle_sensor).update(*(msg[1], msg[2]))
 
         if len(send_queue) > 0:

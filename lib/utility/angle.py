@@ -61,13 +61,13 @@ class Angle:
     def delta(self, other: Any) -> float:
         o = self.to_angle(other)
 
-        if self < o:
-            da = o.angle - self.angle
-        else:
-            da = self.angle - o.angle
-        
-        if da < 0:
-            da += 360
-        return da
+        # Calculate the absolute difference between the angles
+        diff = abs(self.angle - o.angle)
+
+        # Adjust the difference to be between 0 and 180 degrees
+        if diff > 180:
+            diff = 360 - diff
+
+        return diff
         
         

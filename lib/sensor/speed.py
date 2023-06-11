@@ -12,7 +12,7 @@ class SpeedSensor(ABC):
         return
     
     @abstractmethod
-    def measure_speed(self, turn_forward: bool) -> float | None:
+    def measure_speed(self) -> float | None:
         pass
 
 class AngularSpeedSensor(SpeedSensor):
@@ -23,7 +23,7 @@ class AngularSpeedSensor(SpeedSensor):
         self.last_angle_recording: float | None = None
         self.last_angle: Angle | None = None
 
-    def measure_speed(self, turn_forward: bool) -> float | None:
+    def measure_speed(self) -> float | None:
         # Initialize values if they are not set yet
         if self.last_angle is None:
             if self.angle_sensor.last_angle is not None:
@@ -36,11 +36,7 @@ class AngularSpeedSensor(SpeedSensor):
         sensor_recording = self.angle_sensor.last_angle_recording
         dt = sensor_recording - self.last_angle_recording
         if dt > 0:
-            if not turn_forward:
-                da = self.last_angle.delta(sensor_angle)
-            else:
-                da = sensor_angle.delta(self.last_angle)
-
+            da = self.last_angle.delta(sensor_angle)
             s = math.radians(da) * self.stage_circumference / 2
             speed = s / dt
 

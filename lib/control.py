@@ -39,11 +39,14 @@ class ControlRuntime(Runtime):
         
         # Controller
         angle_controller = StageAngleController(
-            self.app.get_config('control', 'angle_pid_kp', float, 2))
+            self.app.get_config('control', 'angle_pid_kp', float, 2),
+            self.app.get_config('control', 'angle_pid_ki', float, 0),
+            self.app.get_config('control', 'angle_pid_kd', float, 0))
         speed_controller = StageSpeedController(
             self.app.get_config('motor', 'max_frequency', float, 40.0),
             self.app.get_config('control', 'speed_pid_kp', float, 10),
-            self.app.get_config('control', 'speed_pid_ki', float, 10))
+            self.app.get_config('control', 'speed_pid_ki', float, 10),
+            self.app.get_config('control', 'speed_pid_kd', float, 0))
         self.control = StageControl(converter, angle_controller, speed_controller)
 
         # Config
@@ -72,8 +75,6 @@ class ControlRuntime(Runtime):
             assert isinstance(command, Command), "Received non command type from the command connection"
             if not self.control.set_activity(command):
                 print("[WARN] Failed to set activity")
-            else:
-                self.sensor_values.send(('direction', command.turn_clockwise))
 
         # Update debug
         if self.app.is_debug_enabled and time() - self.last_debug > 0.2:
