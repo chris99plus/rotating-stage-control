@@ -73,4 +73,19 @@ class Angle:
 
         return diff
         
-        
+def angle_avg(angle_list: list[Angle]) -> Angle:
+    x_sum = 0.0
+    y_sum = 0.0
+
+    for angle in angle_list:
+        x_sum += math.cos(math.radians(angle.angle))
+        y_sum += math.sin(math.radians(angle.angle))
+
+    avg_x = x_sum / len(angle_list)
+    avg_y = y_sum / len(angle_list)
+
+    durchschnitt_winkel = math.degrees(math.atan2(avg_y, avg_x))
+    if durchschnitt_winkel < 0:
+        durchschnitt_winkel += 360.0
+
+    return Angle(durchschnitt_winkel)
