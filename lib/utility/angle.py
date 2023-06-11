@@ -57,6 +57,9 @@ class Angle:
 
     def radian(self) -> float:
         return math.radians(self.angle)
+    
+    def round(self, ndigits: int) -> 'Angle':
+        return Angle(round(self.angle, ndigits))
 
     def delta(self, other: Any) -> float:
         o = self.to_angle(other)
