@@ -42,7 +42,8 @@ class ControlRuntime(Runtime):
             self.app.get_config('control', 'angle_pid_kp', float, 2))
         speed_controller = StageSpeedController(
             self.app.get_config('motor', 'max_frequency', float, 40.0),
-            self.app.get_config('control', 'speed_pid_kp', float, 10))
+            self.app.get_config('control', 'speed_pid_kp', float, 10),
+            self.app.get_config('control', 'speed_pid_ki', float, 10))
         self.control = StageControl(converter, angle_controller, speed_controller)
 
         # Config
@@ -63,7 +64,7 @@ class ControlRuntime(Runtime):
 
         # Update controller and send control values if testing is enabled. 
         if self.control(sensor_values) and self.app.is_testing_enabled:
-            self.sensor_values.send((self.control.motor_running_forward, self.control.motor.get_target_frequency()))
+            self.sensor_values.send(('debug', self.control.motor_running_forward, self.control.motor.get_target_frequency()))
 
         # Update commands
         if self.commands.poll():
@@ -71,10 +72,12 @@ class ControlRuntime(Runtime):
             assert isinstance(command, Command), "Received non command type from the command connection"
             if not self.control.set_activity(command):
                 print("[WARN] Failed to set activity")
+            else:
+                self.sensor_values.send(('direction', command.turn_clockwise))
 
         # Update debug
         if self.app.is_debug_enabled and time() - self.last_debug > 0.2:
-            if self.control.angle_controller.speed is not None and \
+            if self.control.angle_controller._actual_angle is not None and \
                 self.control.speed_controller.frequency is not None:
                 self.app.send((self.control.angle_controller._actual_angle, self.control.speed_controller.frequency))
                 self.last_debug = time()

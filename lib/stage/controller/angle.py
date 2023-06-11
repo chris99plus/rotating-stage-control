@@ -34,8 +34,7 @@ class StageAngleController:
                     self._angle_increment = self._angle_increment + self._actual_angle - actual
                 else:
                     self._angle_increment = self._angle_increment + self._actual_angle + 360 - actual
-            self._control_speed = self._pid(float(actual))
-
+            self._control_speed = self._pid(float(self._angle_increment))
         self._actual_angle = actual
         return self._control_speed
 
@@ -63,10 +62,12 @@ class StageAngleController:
         # Configure PID with control speed
         self._pid.set_auto_mode(False)
         self._pid(0)
-        self._pid.setpoint = control_angle
+        self._angle_increment = Angle(0)
+        self._pid.setpoint = float(control_angle)
         self._pid.output_limits = (-1 * speed, speed)
         self._pid.set_auto_mode(True, last_output=self._control_speed)
-        
+        print(self._pid.output_limits, self._control_speed)
+
         self._desired_angle = angle
         self._turning_clockwise = clockwise
         return True

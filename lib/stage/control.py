@@ -15,7 +15,7 @@ class StageControl:
         # State
         self.motor_running: bool = False
         self.motor_running_forward: bool = True
-        self._active_command: Command | None
+        self._active_command: Command | None = None
 
     @property
     def stopped(self) -> bool:
@@ -34,6 +34,12 @@ class StageControl:
                 else:
                     raise ValueError("Unknown sensor")
 
+        # Update speed controller with speeds from the angle controller, if the
+        # angle used for control.
+        if self._active_command is not None and \
+            self._active_command.action == Command.Action.RUN_TO_ANGLE:
+            self.speed_controller.set_setpoint(self.angle_controller.speed) 
+
         # Updates are possible only if a frequency was calculated by the speed
         # controller.
         if self.speed_controller.frequency is None or \
@@ -49,6 +55,7 @@ class StageControl:
         else:
             speed = self.angle_controller.speed
         assert frequency >= 0
+
         if frequency < 1.0 and self.motor_running:
             self.motor.stop()
             self.motor.set_target_frequency(0)
@@ -64,7 +71,7 @@ class StageControl:
             return True
         
         target_frequency = round(self.motor.get_target_frequency(), 2)
-        if frequency != target_frequency:
+        if frequency != target_frequency and self.motor_running:
             self.motor.set_target_frequency(frequency)
             return True
 
@@ -81,7 +88,7 @@ class StageControl:
         elif command.action == Command.Action.STOP:
             success = self.speed_controller.set_setpoint(0)
         elif command.action == Command.Action.RUN_TO_ANGLE:
-            success = self.angle_controller.set_setpoint(command.angle, command.speed, command.turn_clockwise)
+            success = self.angle_controller.set_setpoint(Angle(command.angle), command.speed, command.turn_clockwise)
         elif command.action == Command.Action.RUN_CONTINUOUS:
             success = self.speed_controller.set_setpoint(command.speed)
         else:

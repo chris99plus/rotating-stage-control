@@ -1,8 +1,11 @@
 from typing import Any
+import math
 
 class Angle:
     def __init__(self, angle: Any) -> None:
-        self.angle = float(angle % 360)
+        self.angle = angle.angle \
+            if isinstance(angle, Angle) \
+            else float(angle % 360)
 
     @staticmethod
     def to_angle(angle: Any) -> 'Angle':
@@ -52,7 +55,19 @@ class Angle:
         else:
             return Angle(self.angle - o.angle)
 
+    def radian(self) -> float:
+        return math.radians(self.angle)
+
     def delta(self, other: Any) -> float:
         o = self.to_angle(other)
-        return o.angle - self.angle
+
+        if self < o:
+            da = o.angle - self.angle
+        else:
+            da = self.angle - o.angle
+        
+        if da < 0:
+            da += 360
+        return da
+        
         

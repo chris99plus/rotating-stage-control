@@ -119,7 +119,7 @@ class OpticalRotationSensor(RotationSensor):
             cv2.destroyAllWindows()
 
 class TestRotationSensor(RotationSensor):
-    def __init__(self, start_angle: float = 180.0, speed: float = 1.0, update_interval: int = 20, stage_diameter: float = 4.5) -> None:
+    def __init__(self, start_angle = Angle(180.0), speed: float = 1.0, update_interval: int = 20, stage_diameter: float = 4.5) -> None:
         super().__init__()
         self.speed = speed
         self.stage_diameter = stage_diameter
@@ -131,7 +131,7 @@ class TestRotationSensor(RotationSensor):
 
     @property
     def last_angle(self) -> Angle | None:
-        return Angle(self.current_angle)
+        return self.current_angle
     
     @property
     def last_angle_recording(self) -> float | None:
@@ -146,11 +146,10 @@ class TestRotationSensor(RotationSensor):
         if dt > self.update_interval:
             dr = math.degrees(self.angular_velocity * dt) # v * s = rad
             if self.turn_forward:
-                self.current_angle += dr
+                self.current_angle += Angle(dr)
             else:
-                self.current_angle -= dr
-            self.current_angle = self.current_angle % 360
+                self.current_angle -= Angle(dr)
             self.last_update = time()
-            return Angle(self.current_angle)
+            return self.current_angle
         else:
             return None

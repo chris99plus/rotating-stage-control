@@ -33,3 +33,23 @@ class Command:
     def is_stop(self) -> bool:
         return self.action == Command.Action.EMERGENCY_STOP or \
                self.action == Command.Action.STOP
+    
+    def __eq__(self, o: object) -> bool:
+        if not isinstance(o, Command):
+            return False
+        if self.action == o.action:
+            if self.is_stop():
+                return True
+            else:
+                if self.action == Command.Action.RUN_CONTINUOUS:
+                    return self.direction == o.direction and \
+                        self.speed == o.speed
+                elif self.action == Command.Action.RUN_TO_ANGLE:
+                    return self.direction == o.direction and \
+                        self.speed == o.speed and \
+                        self.angle == o.angle
+        else:
+            return False
+        
+    def __ne__(self, o: 'Command') -> bool:
+        return not self == o
