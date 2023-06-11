@@ -51,6 +51,7 @@ class ControlRuntime(Runtime):
 
         # Config
         self.max_measurement_duration = self.app.get_config('control', 'max_measurement_duration', int, 100) / 1000
+        self.max_speed = self.app.get_config('DEFAULT', 'max_speed', float, 1.0)
 
     def loop(self):
         # Update sensor values
@@ -73,6 +74,8 @@ class ControlRuntime(Runtime):
         if self.commands.poll():
             command = self.commands.recv()
             assert isinstance(command, Command), "Received non command type from the command connection"
+            if command.speed > self.max_speed:
+                command.speed = self.max_speed
             if not self.control.set_activity(command):
                 print("[WARN] Failed to set activity")
 

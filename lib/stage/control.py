@@ -29,7 +29,7 @@ class StageControl:
                 assert isinstance(value, float)
                 if sensor == Sensor.STAGE_ABSOLUTE_ANGLE:
                     self.angle_controller(Angle(value))
-                    print("Angle", round(value, 2), round(self._active_command.angle, 2) if self._active_command is not None else None, self.angle_controller.speed)
+                    print("Angle", round(value, 2))
                 elif sensor == Sensor.STAGE_SPEED:
                     print("Speed", round(value, 2))
                     self.speed_controller(value)
