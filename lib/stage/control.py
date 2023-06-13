@@ -30,6 +30,8 @@ class StageControl:
                 if sensor == Sensor.STAGE_ABSOLUTE_ANGLE:
                     self.angle_controller(Angle(value))
                 elif sensor == Sensor.STAGE_SPEED:
+                    if self._active_command is not None:
+                        print("Speed: %.2f from %.2f" % (value, self._active_command.speed))
                     self.speed_controller(value)
                 else:
                     raise ValueError("Unknown sensor")
