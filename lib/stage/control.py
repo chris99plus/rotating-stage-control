@@ -4,6 +4,7 @@ from .controller.speed import StageSpeedController
 from .commands import Command
 from lib.sensor import Sensor
 from lib.utility.angle import Angle
+from time import time
 
 class StageControl:
     def __init__(self, motor: FrequencyConverter, angle_controller: StageAngleController, speed_controller: StageSpeedController, max_frequency: float) -> None:
@@ -18,6 +19,7 @@ class StageControl:
         self._active_command: Command | None = None
 
         self.max_frequency = max_frequency
+        self.last_update = time()
 
     @property
     def stopped(self) -> bool:
@@ -68,12 +70,12 @@ class StageControl:
             speed = 0
         assert frequency >= 0
 
-        if self.motor.is_emergency_stop_active():
-            self._active_command = Command(Command.Action.EMERGENCY_STOP)
-            self.motor.stop()
-            self.motor.set_target_frequency(0)
-            return True
-        elif frequency < 1.0 and self.motor_running:
+        # if self.motor.is_emergency_stop_active():
+        #     self._active_command = Command(Command.Action.EMERGENCY_STOP)
+        #     self.motor.stop()
+        #     self.motor.set_target_frequency(0)
+        #     return True
+        if frequency < 1.0 and self.motor_running:
             self.motor.stop()
             self.motor.set_target_frequency(0)
             self.motor_running = False
@@ -87,11 +89,13 @@ class StageControl:
             self.motor.set_target_frequency(frequency)
             return True
         
-        target_frequency = round(self.motor.get_target_frequency(), 2)
-        if frequency != target_frequency and self.motor_running:
-            if frequency >= 0.5:
-                self.motor.set_target_frequency(frequency)
-            return True
+        if self.last_update - time() > 0.1:
+            self.last_update = time()
+            target_frequency = round(self.motor.get_target_frequency(), 2)
+            if frequency != target_frequency and self.motor_running:
+                if frequency >= 0.5:
+                    self.motor.set_target_frequency(frequency)
+                return True
 
         return False
 
