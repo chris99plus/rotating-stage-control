@@ -87,7 +87,8 @@ class ControlRuntime(Runtime):
                 self.last_debug = time()
 
     def stop(self) -> int | None:
-        pass
+        self.control.motor.set_target_frequency(0)
+        self.control.motor.stop()
 
 class Control(GenericProcess):
     def __init__(self, view: View, absolute_sensor: AbsoluteSensor) -> None:
