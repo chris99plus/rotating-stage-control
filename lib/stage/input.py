@@ -133,16 +133,17 @@ class StageOSCInput:
         if not isinstance(osc_arguments[1], float):
             self._debug("Invalid remote frequency: %s" %osc_arguments)
             return
-        if osc_arguments[0] != 1 or osc_arguments[1] != 0:
+        direction = round(osc_arguments[0])
+        if direction != 1 or direction != 0:
             self._debug("Invalid remote direction")
             return
         if osc_arguments[1] < 0 or osc_arguments[0] > 1:
             self._debug("Invalid remote frequency")
         if osc_arguments[1] == 0:
             self.state = Command(Command.Action.STOP,
-                                 Command.Direction.CLOCKWISE if bool(osc_arguments[0]) else Command.Direction.COUNTERCLOCKWISE)
+                                 Command.Direction.CLOCKWISE if bool(direction) else Command.Direction.COUNTERCLOCKWISE)
         else:
             self.state = Command(Command.Action.REMOTE, 
-                             Command.Direction.CLOCKWISE if bool(osc_arguments[0]) else Command.Direction.COUNTERCLOCKWISE,
+                             Command.Direction.CLOCKWISE if bool(direction) else Command.Direction.COUNTERCLOCKWISE,
                              frequency=osc_arguments[1])
         self._debug("Set new mode: %s" % self.internal_state.action)
