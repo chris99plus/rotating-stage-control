@@ -63,6 +63,9 @@ class StageControl:
             assert self._active_command.frequency is not None
             frequency = self._active_command.frequency
             speed = 0
+        else:
+            frequency = 0
+            speed = 0
         assert frequency >= 0
 
         if self.motor.is_emergency_stop_active():
