@@ -89,7 +89,7 @@ class StageControl:
         
         target_frequency = round(self.motor.get_target_frequency(), 2)
         if frequency != target_frequency and self.motor_running:
-            if frequency >= 2.0:
+            if frequency >= 0.5:
                 self.motor.set_target_frequency(frequency)
             return True
 
