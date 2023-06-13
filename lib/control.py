@@ -84,7 +84,7 @@ class ControlRuntime(Runtime):
 
         # Check if send command and active command are the same. Otherwise
         # notify view process.
-        if self.last_send_command != self.control.activity:
+        if self.last_send_command != self.control.activity and self.last_send_command is not None:
             self.commands.send(self.control.activity)
 
         # Update debug
