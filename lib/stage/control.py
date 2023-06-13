@@ -63,7 +63,6 @@ class StageControl:
             assert self._active_command.frequency is not None
             frequency = self._active_command.frequency * self.max_frequency
             speed = 0
-            print("Frequency", frequency)
         else:
             frequency = 0
             speed = 0

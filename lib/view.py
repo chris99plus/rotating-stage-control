@@ -41,7 +41,7 @@ class ViewRuntime(Runtime):
         while self.commands.poll():
             active_command = self.commands.recv()
             assert isinstance(active_command, Command)
-            print("Received active command different from current")
+            # print("Received active command different from current")
 
     def stop(self) -> int | None:
         pass
