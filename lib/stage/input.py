@@ -146,4 +146,4 @@ class StageOSCInput:
             self.state = Command(Command.Action.REMOTE, 
                              Command.Direction.CLOCKWISE if bool(direction) else Command.Direction.COUNTERCLOCKWISE,
                              frequency=osc_arguments[1])
-        self._debug("Set new mode: %s" % self.internal_state.action)
+        self._debug("Set new mode: %s" % self.state.action)
