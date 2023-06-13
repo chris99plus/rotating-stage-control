@@ -30,7 +30,7 @@ class StageControl:
                 if sensor == Sensor.STAGE_ABSOLUTE_ANGLE:
                     self.angle_controller(Angle(value))
                 elif sensor == Sensor.STAGE_SPEED:
-                    if self._active_command is not None:
+                    if self._active_command is not None and value > self._active_command.speed:
                         print("Speed: %.2f from %.2f (Freq %.2f Soll-F: %.2f, Ist-F: %.2f, Stopped: %s)" % (value, self._active_command.speed, self.speed_controller.frequency or 0.0, self.motor.get_target_frequency(), self.motor.get_current_frequency(), self.stopped))
                     self.speed_controller(value)
                 else:
