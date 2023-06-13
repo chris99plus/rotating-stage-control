@@ -12,6 +12,7 @@ class StageInputState:
         self.direction = Command.Direction.CLOCKWISE
         self.speed = 0.0
         self.angle = 0.0
+        self.frequency = 0.0
 
     @property
     def command(self) -> Command:
@@ -22,6 +23,8 @@ class StageInputState:
             return Command(self.action, self.direction, self.speed)
         elif self.action == Command.Action.RUN_TO_ANGLE:
             return Command(self.action, self.direction, self.speed, self.angle)
+        elif self.action == Command.Action.REMOTE:
+            return Command(self.action, self.direction, frequency=self.frequency)
         else:
             raise ValueError("Unknown command action")
     
@@ -140,10 +143,9 @@ class StageOSCInput:
         if osc_arguments[1] < 0 or osc_arguments[0] > 1:
             self._debug("Invalid remote frequency")
         if osc_arguments[1] == 0:
-            self.state = Command(Command.Action.STOP,
-                                 Command.Direction.CLOCKWISE if bool(direction) else Command.Direction.COUNTERCLOCKWISE)
+            self.state.action = Command.Action.STOP
         else:
-            self.state = Command(Command.Action.REMOTE, 
-                             Command.Direction.CLOCKWISE if bool(direction) else Command.Direction.COUNTERCLOCKWISE,
-                             frequency=osc_arguments[1])
+            self.state.action = Command.Action.REMOTE
+            self.state.frequency = osc_arguments[1]
+            self.state.direction = Command.Direction.CLOCKWISE if bool(direction) else Command.Direction.COUNTERCLOCKWISE
         self._debug("Set new mode: %s" % self.state.action)

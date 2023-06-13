@@ -32,8 +32,6 @@ class StageControl:
                 if sensor == Sensor.STAGE_ABSOLUTE_ANGLE:
                     self.angle_controller(Angle(value))
                 elif sensor == Sensor.STAGE_SPEED:
-                    if self._active_command is not None and value > self._active_command.speed:
-                        print("Speed: %.2f from %.2f (Freq %.2f Soll-F: %.2f, Ist-F: %.2f, Stopped: %s)" % (value, self._active_command.speed, self.speed_controller.frequency or 0.0, self.motor.get_target_frequency(), self.motor.get_current_frequency(), self.stopped))
                     self.speed_controller(value)
                 else:
                     raise ValueError("Unknown sensor")
@@ -44,7 +42,7 @@ class StageControl:
             # angle used for control.
             if self._active_command is not None and \
                 self._active_command.action == Command.Action.RUN_TO_ANGLE:
-                self.speed_controller.set_setpoint(self.angle_controller.speed) 
+                self.speed_controller.set_setpoint(self.angle_controller.speed)
 
             # Updates are possible only if a frequency was calculated by the speed
             # controller.
@@ -61,7 +59,7 @@ class StageControl:
             else:
                 speed = self.angle_controller.speed
         elif self._active_command is not None and \
-             self._active_command.action == Command.Action.REMOTE:
+            self._active_command.action == Command.Action.REMOTE:
             assert self._active_command.frequency is not None
             frequency = self._active_command.frequency * self.max_frequency
             speed = 0
@@ -114,6 +112,7 @@ class StageControl:
             success = self.speed_controller.set_setpoint(command.speed)
         elif command.action == Command.Action.REMOTE:
             self.speed_controller.set_setpoint(0)
+            success = True
         else:
             raise ValueError("Unknown command action")
 
