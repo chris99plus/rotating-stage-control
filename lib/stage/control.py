@@ -31,7 +31,7 @@ class StageControl:
                     self.angle_controller(Angle(value))
                 elif sensor == Sensor.STAGE_SPEED:
                     if self._active_command is not None:
-                        print("Speed: %.2f from %.2f" % (value, self._active_command.speed))
+                        print("Speed: %.2f from %.2f (Freq %.2f)" % (value, self._active_command.speed, self.speed_controller.frequency or 0.0))
                     self.speed_controller(value)
                 else:
                     raise ValueError("Unknown sensor")
@@ -74,7 +74,8 @@ class StageControl:
         
         target_frequency = round(self.motor.get_target_frequency(), 2)
         if frequency != target_frequency and self.motor_running:
-            self.motor.set_target_frequency(frequency)
+            if frequency >= 2.0:
+                self.motor.set_target_frequency(frequency)
             return True
 
         return False
