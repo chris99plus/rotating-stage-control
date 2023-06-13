@@ -124,7 +124,10 @@ class StageOSCInput:
         self._debug("Set new angle: %.2f" % self.state.angle)
 
     def _osc_remote(self, addr: str, *osc_arguments) -> None:
-        if len(osc_arguments) != 2 and not isinstance(osc_arguments[0], int) and not isinstance(osc_arguments[1], float):
+        if len(osc_arguments) != 2:
+            self._debug("Invalid length of arguments")
+            return
+        if not isinstance(osc_arguments[0], int) and not isinstance(osc_arguments[1], float):
             self._debug("Invalid remote arguments: %s" %osc_arguments)
             return
         if osc_arguments[0] != 1 or osc_arguments[1] != 0:
