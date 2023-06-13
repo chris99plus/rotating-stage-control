@@ -134,7 +134,7 @@ class StageOSCInput:
             self._debug("Invalid remote frequency: %s" %osc_arguments)
             return
         direction = round(osc_arguments[0])
-        if direction != 1 or direction != 0:
+        if direction != 1 and direction != 0:
             self._debug("Invalid remote direction")
             return
         if osc_arguments[1] < 0 or osc_arguments[0] > 1:
