@@ -127,8 +127,11 @@ class StageOSCInput:
         if len(osc_arguments) != 2:
             self._debug("Invalid length of arguments")
             return
-        if not isinstance(osc_arguments[0], int) and not isinstance(osc_arguments[1], float):
-            self._debug("Invalid remote arguments: %s" %osc_arguments)
+        if not isinstance(osc_arguments[0], int) and not isinstance(osc_arguments[0], float):
+            self._debug("Invalid remote direction argument")
+            return
+        if not isinstance(osc_arguments[1], float):
+            self._debug("Invalid remote frequency: %s" %osc_arguments)
             return
         if osc_arguments[0] != 1 or osc_arguments[1] != 0:
             self._debug("Invalid remote direction")

@@ -17,6 +17,8 @@ class StageControl:
         self.motor_running_forward: bool = True
         self._active_command: Command | None = None
 
+        self.max_frequency = max_frequency
+
     @property
     def stopped(self) -> bool:
         return not self.motor_running
@@ -61,7 +63,7 @@ class StageControl:
         elif self._active_command is not None and \
              self._active_command.action == Command.Action.REMOTE:
             assert self._active_command.frequency is not None
-            frequency = self._active_command.frequency
+            frequency = self._active_command.frequency * self.max_frequency
             speed = 0
         else:
             frequency = 0
