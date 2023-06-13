@@ -30,6 +30,7 @@ class ControlRuntime(Runtime):
         # State
         self.last_debug: float = time()
         self.last_measurement: float = time()
+        self.last_send_command: Command | None = None
 
     def setup(self):
         converter = JSLSM100Converter(
@@ -78,6 +79,13 @@ class ControlRuntime(Runtime):
                 command.speed = self.max_speed
             if not self.control.set_activity(command):
                 print("[WARN] Failed to set activity")
+            else:
+                self.last_send_command = command
+
+        # Check if send command and active command are the same. Otherwise
+        # notify view process.
+        if self.last_send_command != self.control.activity:
+            self.commands.send(self.control.activity)
 
         # Update debug
         if self.app.is_debug_enabled and time() - self.last_debug > 0.2:

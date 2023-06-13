@@ -15,6 +15,10 @@ class FrequencyConverter(ABC):
         pass
 
     @abstractmethod
+    def is_emergency_stop_active(self) -> bool:
+        pass
+
+    @abstractmethod
     def run(self, forward: bool) -> None:
         pass
 
@@ -78,7 +82,14 @@ class JSLSM100Converter(FrequencyConverter):
         return "{0:b}".format(current)
 
     def emergency_stop(self) -> None:
-        self.jslsm100.write_register(int('0x0006', 0), int('B4', 16), functioncode=6)
+        current = self.read_reg('0x0006')
+        current = current & 0b1111111111100000
+
+        new_value = current + 0b10000
+        self.jslsm100.write_register(self.reg_addr('0x0006'), new_value, functioncode=6)
+
+    def is_emergency_stop_active(self) -> bool:
+        return bool(self.read_reg('0x0006') & 0b0000000000010000)
 
 class TestConverter(FrequencyConverter):
     def __init__(self) -> None:
@@ -109,3 +120,6 @@ class TestConverter(FrequencyConverter):
         self.running = False
         self.emergency = True
         print("[Test Converter] EMERGENCY STOP!!! Stopping immediately!")
+    
+    def is_emergency_stop_active(self) -> bool:
+        return self.emergency

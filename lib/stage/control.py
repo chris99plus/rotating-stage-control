@@ -58,7 +58,12 @@ class StageControl:
             speed = self.angle_controller.speed
         assert frequency >= 0
 
-        if frequency < 1.0 and self.motor_running:
+        if self.motor.is_emergency_stop_active():
+            self._active_command = Command(Command.Action.EMERGENCY_STOP)
+            self.motor.stop()
+            self.motor.set_target_frequency(0)
+            return True
+        elif frequency < 1.0 and self.motor_running:
             self.motor.stop()
             self.motor.set_target_frequency(0)
             self.motor_running = False
