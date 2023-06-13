@@ -6,7 +6,7 @@ from lib.sensor import Sensor
 from lib.utility.angle import Angle
 
 class StageControl:
-    def __init__(self, motor: FrequencyConverter, angle_controller: StageAngleController, speed_controller: StageSpeedController) -> None:
+    def __init__(self, motor: FrequencyConverter, angle_controller: StageAngleController, speed_controller: StageSpeedController, max_frequency: float) -> None:
         # Controller
         self.motor = motor
         self.angle_controller = angle_controller
@@ -36,26 +36,33 @@ class StageControl:
                 else:
                     raise ValueError("Unknown sensor")
 
-        # Update speed controller with speeds from the angle controller, if the
-        # angle used for control.
         if self._active_command is not None and \
-            self._active_command.action == Command.Action.RUN_TO_ANGLE:
-            self.speed_controller.set_setpoint(self.angle_controller.speed) 
+            self._active_command.action != Command.Action.REMOTE:
+            # Update speed controller with speeds from the angle controller, if the
+            # angle used for control.
+            if self._active_command is not None and \
+                self._active_command.action == Command.Action.RUN_TO_ANGLE:
+                self.speed_controller.set_setpoint(self.angle_controller.speed) 
 
-        # Updates are possible only if a frequency was calculated by the speed
-        # controller.
-        if self.speed_controller.frequency is None or \
-            (self.speed_controller.frequency is None and \
-            self.angle_controller.speed is None):
-            return False
+            # Updates are possible only if a frequency was calculated by the speed
+            # controller.
+            if self.speed_controller.frequency is None or \
+                (self.speed_controller.frequency is None and \
+                self.angle_controller.speed is None):
+                return False
         
-        # Control motor and update parameters
-        frequency = round(self.speed_controller.frequency, 2)
-        if self.angle_controller.speed is None:
-            assert self.speed_controller.actual_speed is not None
-            speed = self.speed_controller.actual_speed
-        else:
-            speed = self.angle_controller.speed
+            # Control motor and update parameters
+            frequency = round(self.speed_controller.frequency, 2)
+            if self.angle_controller.speed is None:
+                assert self.speed_controller.actual_speed is not None
+                speed = self.speed_controller.actual_speed
+            else:
+                speed = self.angle_controller.speed
+        elif self._active_command is not None and \
+             self._active_command.action == Command.Action.REMOTE:
+            assert self._active_command.frequency is not None
+            frequency = self._active_command.frequency
+            speed = 0
         assert frequency >= 0
 
         if self.motor.is_emergency_stop_active():
@@ -99,6 +106,8 @@ class StageControl:
             success = self.angle_controller.set_setpoint(Angle(command.angle), command.speed, command.turn_clockwise)
         elif command.action == Command.Action.RUN_CONTINUOUS:
             success = self.speed_controller.set_setpoint(command.speed)
+        elif command.action == Command.Action.REMOTE:
+            self.speed_controller.set_setpoint(0)
         else:
             raise ValueError("Unknown command action")
 

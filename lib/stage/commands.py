@@ -11,16 +11,20 @@ class Command:
         STOP = 1
         RUN_CONTINUOUS = 2
         RUN_TO_ANGLE = 3
+        REMOTE = 4
 
-    def __init__(self, action: 'Action', direction: 'Direction' = Direction.NONE, speed: float = 1.0, angle: float | None = None) -> None:
+    def __init__(self, action: 'Action', direction: 'Direction' = Direction.NONE, speed: float = 1.0, angle: float | None = None, frequency: float | None = None) -> None:
         if action == Command.Action.RUN_TO_ANGLE:
             assert angle >= 0 and angle < 360, 'Expect angle in degree between 0 and 360 [0, 360)'
         if direction == Command.Direction.NONE:
             assert action == Command.Action.EMERGENCY_STOP or action == Command.Action.STOP, 'Expect direction for run commands'
+        if action == Command.Action.REMOTE:
+            assert frequency is not None, 'Expect frequency on REMOTE command'
         self.action = action
         self.direction = direction
         self.speed = speed
         self.angle = angle
+        self.frequency = frequency
 
     @property
     def turn_clockwise(self) -> bool:

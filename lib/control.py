@@ -38,17 +38,19 @@ class ControlRuntime(Runtime):
                 self.app.get_config('motor', 'port', str, '/dev/serial0')) \
             if not self.app.is_testing_enabled else TestConverter()
         
+        max_frequency = self.app.get_config('motor', 'max_frequency', float, 40.0)
+        
         # Controller
         angle_controller = StageAngleController(
             self.app.get_config('control', 'angle_pid_kp', float, 2),
             self.app.get_config('control', 'angle_pid_ki', float, 0),
             self.app.get_config('control', 'angle_pid_kd', float, 0))
         speed_controller = StageSpeedController(
-            self.app.get_config('motor', 'max_frequency', float, 40.0),
+            max_frequency,
             self.app.get_config('control', 'speed_pid_kp', float, 10),
             self.app.get_config('control', 'speed_pid_ki', float, 10),
             self.app.get_config('control', 'speed_pid_kd', float, 0))
-        self.control = StageControl(converter, angle_controller, speed_controller)
+        self.control = StageControl(converter, angle_controller, speed_controller, max_frequency)
 
         # Config
         self.max_measurement_duration = self.app.get_config('control', 'max_measurement_duration', int, 100) / 1000

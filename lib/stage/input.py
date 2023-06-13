@@ -41,6 +41,7 @@ class StageOSCInput:
         self.dispatcher.map("/speed", self._osc_speed)
         self.dispatcher.map("/direction", self._osc_direction)
         self.dispatcher.map("/angle", self._osc_angle)
+        self.dispatcher.map("/remote", self._osc_remote)
 
         self.osc = ThreadingOSCUDPServer((ip, port), self.dispatcher)
         self.osc.timeout = 0.1
@@ -82,6 +83,8 @@ class StageOSCInput:
             self.internal_state.action == Command.Action.RUN_CONTINUOUS
         elif osc_arguments[0] == "to_angle":
             self.internal_state.action == Command.Action.RUN_TO_ANGLE
+        elif osc_arguments[0] == "remote":
+            self.internal_state.action == Command.Action.REMOTE
         else:
             self._debug("Invalid mode: %s" % osc_arguments[0])
         self._debug("Set new mode: %s" % self.internal_state.action)
@@ -119,3 +122,17 @@ class StageOSCInput:
         self.internal_state.angle = osc_arguments[0]
         self.state.angle = osc_arguments[0]
         self._debug("Set new angle: %.2f" % self.state.angle)
+
+    def _osc_remote(self, addr: str, *osc_arguments) -> None:
+        if len(osc_arguments) != 2 and not isinstance(osc_arguments[0], int) and not isinstance(osc_arguments[1], float):
+            self._debug("Invalid remote arguments: %s" %osc_arguments)
+            return
+        if osc_arguments[0] != 1 or osc_arguments[1] != 0:
+            self._debug("Invalid remote direction")
+            return
+        if osc_arguments[1] < 0 or osc_arguments[0] > 1:
+            self._debug("Invalid remote frequency")
+        self.state = Command(Command.Action.REMOTE, 
+                             Command.Direction.CLOCKWISE if bool(osc_arguments[0]) else Command.Direction.COUNTERCLOCKWISE,
+                             frequency=osc_arguments[1])
+        self._debug("Set new mode: %s" % self.internal_state.action)
